@@ -1,0 +1,15 @@
+name = "scrd-skyfirst-api"
+main = "backend_worker.js"
+compatibility_date = "2026-10-21"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "REPLACE_WITH_ACTUAL_D1_DATABASE_NAME"
+database_id = "6006fe24-6278-4989-8d94-fd4734d71679"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "scrd-files"
+
+# Add production route/custom_domain only after DNS, Worker and secrets are verified.
+# Never put EMAIL_API_KEY, EMAIL_WEBHOOK_URL credentials, or bootstrap secrets here.
