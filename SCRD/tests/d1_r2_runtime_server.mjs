@@ -2,7 +2,7 @@ import { webcrypto } from 'node:crypto';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 /**
  * Local Cloudflare Worker + D1 (SQLite) + R2 + Static Assets Runtime Server
- * Runs both SCRD (`backend_worker.js` on port 8787) and EXAM (`exam-portal/src/index.js` on port 8788)
+ * Runs both SCRD (`backend_worker.js` on port 8787) and EXAM (`EXAM/src/index.js` on port 8788)
  * against a shared SQLite database initialized from `d1_schema_migration.sql`.
  */
 
@@ -287,7 +287,7 @@ export function startWorkerHttpServer(workerModule, env, port) {
 // If invoked directly with `--serve`, run SCRD on 8787 and EXAM on 8788
 if (process.argv.includes('--serve')) {
   const scrdWorker = (await import(path.join(ROOT_DIR, 'backend_worker.js'))).default;
-  const examWorker = (await import(path.join(ROOT_DIR, 'exam-portal', 'src', 'index.js'))).default;
+  const examWorker = (await import(path.join(ROOT_DIR, 'EXAM', 'src', 'index.js'))).default;
   const dbPath = process.env.TEST_SQLITE_PATH || ':memory:';
   const DB = createD1Database(dbPath);
   const FILES = createR2Bucket();
@@ -302,7 +302,7 @@ if (process.argv.includes('--serve')) {
   const examEnv = {
     DB,
     FILES,
-    ASSETS: createAssetsBinding(path.join(ROOT_DIR, 'exam-portal', 'public')),
+    ASSETS: createAssetsBinding(path.join(ROOT_DIR, 'EXAM', 'public')),
     CONTROL_ORIGIN: 'http://127.0.0.1:8787'
   };
   await startWorkerHttpServer(scrdWorker, scrdEnv, 8787);

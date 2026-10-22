@@ -1,0 +1,26 @@
+name = "scrd-skyfirst-api"
+main = "backend_worker.js"
+compatibility_date = "2026-10-22"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "REPLACE_WITH_ACTUAL_D1_DATABASE_NAME"
+database_id = "6006fe24-6278-4989-8d94-fd4734d71679"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "scrd-files"
+
+[vars]
+EXAM_PORTAL_URL = "https://exam.skyfirst.io.vn"
+
+# Required secrets must be configured with `wrangler secret put`:
+# BOOTSTRAP_SECRET_TOKEN
+# ID_ENCRYPTION_KEY
+# Optional email integration secrets: EMAIL_WEBHOOK_URL, EMAIL_API_KEY, EMAIL_FROM
+# Do not commit production secrets to source control.

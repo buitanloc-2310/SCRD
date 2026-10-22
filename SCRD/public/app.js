@@ -141,6 +141,43 @@ export function esc(val) {
   }[ch]));
 }
 
+/** Render CMS-authored rich text without executing script, event handlers, or unsafe URLs. */
+export function safeRichHtml(value) {
+  const template = document.createElement('template');
+  template.innerHTML = String(value ?? '').slice(0, 200000);
+  const allowedTags = new Set(['P','BR','H2','H3','H4','UL','OL','LI','STRONG','B','EM','I','U','BLOCKQUOTE','A','CODE','PRE','TABLE','THEAD','TBODY','TR','TH','TD','HR','IMG','FIGURE','FIGCAPTION']);
+  const removedTags = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','FORM','INPUT','BUTTON','TEXTAREA','SELECT','OPTION','SVG','MATH','META','BASE','LINK','VIDEO','AUDIO','SOURCE']);
+  const allowedAttrs = new Set(['href','src','alt','title','target','rel','loading','colspan','rowspan','scope']);
+  const walk = node => {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType !== Node.ELEMENT_NODE) continue;
+      const tag = child.tagName.toUpperCase();
+      if (removedTags.has(tag)) { child.remove(); continue; }
+      if (!allowedTags.has(tag)) {
+        child.replaceWith(...child.childNodes);
+        continue;
+      }
+      for (const attr of [...child.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (!allowedAttrs.has(name)) { child.removeAttribute(attr.name); continue; }
+        if ((name === 'href' || name === 'src') && !safeRichUrl(attr.value, name === 'src')) { child.removeAttribute(attr.name); continue; }
+      }
+      if (tag === 'A' && child.getAttribute('target') === '_blank') child.setAttribute('rel', 'noopener noreferrer');
+      if (tag === 'IMG') { child.setAttribute('loading','lazy'); child.setAttribute('referrerpolicy','no-referrer'); }
+      walk(child);
+    }
+  };
+  walk(template.content);
+  return template.innerHTML;
+}
+
+function safeRichUrl(value, isImage = false) {
+  const v = String(value || '').trim();
+  if (!v || v.startsWith('//') || /^[\u0000-\u0020]*javascript:/i.test(v) || /^[\u0000-\u0020]*data:/i.test(v) || /^[\u0000-\u0020]*vbscript:/i.test(v)) return false;
+  if (v.startsWith('/') || v.startsWith('#')) return !isImage || v.startsWith('/');
+  try { const u = new URL(v, window.location.origin); return ['https:','http:'].includes(u.protocol) && (!isImage || u.origin === window.location.origin || u.protocol === 'https:'); } catch { return false; }
+}
+
 export function showToast(message, isError = false) {
   const wrap = document.getElementById('toastContainer');
   if (!wrap) return;
@@ -424,6 +461,8 @@ export async function renderRoute() {
     renderHomeView(vp, isVi, t);
   } else if (path === '/gioi-thieu' || path.startsWith('/gioi-thieu/')) {
     renderAboutView(vp, isVi);
+  } else if (['/chinh-sach-bao-mat','/dieu-khoan-su-dung','/an-toan-thong-tin'].includes(path)) {
+    renderAboutView(vp, isVi);
   } else if (path === '/nghien-cuu-khoa-hoc') {
     renderResearchView(vp, isVi, t);
   } else if (path === '/du-an-cong-dong') {
@@ -653,7 +692,8 @@ function renderHomeView(vp, isVi, t) {
 function renderAboutView(vp, isVi) {
   const pathParts = AppState.currentPath.split('/').filter(Boolean);
   const slugFromPath = pathParts.length > 1 ? pathParts[1] : null;
-  const requestedSlug = AppState.currentQuery.get('section') || slugFromPath || 'tong-quan';
+  const directPolicySlugs = {'/chinh-sach-bao-mat':'chinh-sach-bao-mat','/dieu-khoan-su-dung':'dieu-khoan-su-dung','/an-toan-thong-tin':'an-toan-thong-tin'};
+  const requestedSlug = AppState.currentQuery.get('section') || slugFromPath || directPolicySlugs[AppState.currentPath] || 'tong-quan';
   const activePage = AppState.pages.find(p => p.slug === requestedSlug) || AppState.pages[0];
 
   if (!activePage) {
@@ -692,7 +732,7 @@ function renderAboutView(vp, isVi) {
             <span>Slug: <code>/gioi-thieu?section=${esc(activePage.slug)}</code></span>
             <span>${isVi ? 'Cập nhật:' : 'Updated:'} ${esc((activePage.updated_at || '').slice(0, 10))}</span>
           </div>
-          <div style="font-size:15px;line-height:1.8;">${content}</div>
+          <div style="font-size:15px;line-height:1.8;">${safeRichHtml(content)}</div>
 
           ${showSupportForm ? `
             <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--line-200);">
@@ -976,11 +1016,12 @@ async function startRealExamSession(examId) {
       method: 'POST',
       body: JSON.stringify({})
     });
+    if (launchRes.launch_url) {
+      window.location.assign(launchRes.launch_url);
+      return;
+    }
     const attRes = await apiFetch(`/api/my/exam-attempts/${encodeURIComponent(launchRes.attempt_id)}`);
-    AppState.activeExamAttempt = {
-      ...attRes.attempt,
-      launch_url: launchRes.launch_url
-    };
+    AppState.activeExamAttempt = { ...attRes.attempt };
     renderActiveExamWorkspace(arena);
   } catch (err) {
     arena.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
@@ -1234,7 +1275,7 @@ function renderNewsView(vp, isVi, t) {
           <div style="font-size:13px;color:var(--ink-500);margin-bottom:20px;border-bottom:1px solid var(--line-200);padding-bottom:12px;">
             📅 ${esc((post.published_at || '').slice(0, 10))} • ✍️ ${esc(post.display_author)}
           </div>
-          <div style="font-size:15.5px;line-height:1.8;">${isVi ? post.content_vi : (post.content_en || post.content_vi)}</div>
+          <div style="font-size:15.5px;line-height:1.8;">${safeRichHtml(isVi ? post.content_vi : (post.content_en || post.content_vi))}</div>
         </article>
       </div>
     `;
@@ -2383,7 +2424,7 @@ function renderDashboardSubTab(subVp, tab) {
     `;
 
     const openPostForm = postObj => {
-      const p = postObj || { id: '', title_vi: '', title_en: '', slug: '', category: 'Tin tức Hoạt động', excerpt_vi: '', content_vi: '', seo_title: '', seo_description: '', status: 'draft', is_ai_generated: 0 };
+      const p = postObj || { id: '', title_vi: '', title_en: '', slug: '', category: 'Tin tức và Hoạt động', excerpt_vi: '', excerpt_en: '', content_vi: '', content_en: '', featured_image_url: '', tags_json: '[]', seo_title: '', seo_description: '', status: 'draft', is_ai_generated: 0 };
       const area = document.getElementById('cmsPostEditorArea');
       area.innerHTML = `
         <div class="card" style="border:2px solid var(--blue-600);">
@@ -2405,9 +2446,10 @@ function renderDashboardSubTab(subVp, tab) {
                 </select>
               </div>
             </div>
-            <div class="form-group"><label class="form-label">Tóm tắt (Excerpt VI)</label><input id="pExcerptVi" class="form-control" value="${esc(p.excerpt_vi || '')}"></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">Tóm tắt (VI)</label><textarea id="pExcerptVi" class="form-control" rows="2">${esc(p.excerpt_vi || '')}</textarea></div><div class="form-group"><label class="form-label">Excerpt (EN)</label><textarea id="pExcerptEn" class="form-control" rows="2">${esc(p.excerpt_en || '')}</textarea></div></div>
             <div class="form-group"><label class="form-label">SEO Description</label><input id="pSeoDesc" class="form-control" value="${esc(p.seo_description || '')}"></div>
-            <div class="form-group"><label class="form-label">Nội dung HTML (VI) *</label><textarea id="pContentVi" class="form-control" rows="5" required>${esc(p.content_vi || '')}</textarea></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">Nội dung HTML (VI) *</label><textarea id="pContentVi" class="form-control" rows="7" required>${esc(p.content_vi || '')}</textarea></div><div class="form-group"><label class="form-label">Content HTML (EN)</label><textarea id="pContentEn" class="form-control" rows="7">${esc(p.content_en || '')}</textarea></div></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">Ảnh đại diện (URL hợp lệ, nếu có)</label><input id="pFeaturedImage" class="form-control" type="url" value="${esc(p.featured_image_url || '')}"></div><div class="form-group"><label class="form-label">Tags (JSON array)</label><input id="pTags" class="form-control" value="${esc(p.tags_json || '[]')}" placeholder='["nghiên cứu","cộng đồng"]'></div></div>
             <div style="display:flex;gap:10px;">
               <button type="submit" class="btn btn-primary">Lưu lên Backend D1</button>
               <button type="button" class="btn btn-secondary" id="btnCancelPostEdit">Đóng</button>
@@ -2431,7 +2473,11 @@ function renderDashboardSubTab(subVp, tab) {
               seo_description: document.getElementById('pSeoDesc').value.trim(),
               status: document.getElementById('pStatus').value,
               excerpt_vi: document.getElementById('pExcerptVi').value.trim(),
+              excerpt_en: document.getElementById('pExcerptEn').value.trim(),
               content_vi: document.getElementById('pContentVi').value.trim(),
+              content_en: document.getElementById('pContentEn').value.trim(),
+              featured_image_url: document.getElementById('pFeaturedImage').value.trim(),
+              tags_json: document.getElementById('pTags').value.trim() || '[]',
               is_ai_generated: Boolean(p.is_ai_generated),
               explicit_publish: document.getElementById('pStatus').value === 'published'
             })
@@ -2517,12 +2563,16 @@ function renderDashboardSubTab(subVp, tab) {
           <div class="card" style="border:2px solid var(--blue-600);">
             <h3>Chỉnh sửa Trang: ${esc(pg.title_vi)}</h3>
             <form id="cmsPageForm" style="margin-top:12px;">
-              <div class="grid-2">
+              <div class="grid-3">
+                <div class="form-group"><label class="form-label">Slug *</label><input id="pgSlug" class="form-control" value="${esc(pg.slug)}" required></div>
                 <div class="form-group"><label class="form-label">Tiêu đề (VI) *</label><input id="pgTitleVi" class="form-control" value="${esc(pg.title_vi)}" required></div>
                 <div class="form-group"><label class="form-label">Tiêu đề (EN) *</label><input id="pgTitleEn" class="form-control" value="${esc(pg.title_en || '')}" required></div>
               </div>
-              <div class="form-group"><label class="form-label">Nội dung HTML (VI) *</label><textarea id="pgContentVi" class="form-control" rows="5" required>${esc(pg.content_vi)}</textarea></div>
-              <div class="form-group"><label class="form-label">Nội dung HTML (EN)</label><textarea id="pgContentEn" class="form-control" rows="4">${esc(pg.content_en || '')}</textarea></div>
+              <div class="grid-2"><div class="form-group"><label class="form-label">Tóm tắt (VI)</label><textarea id="pgSummaryVi" class="form-control" rows="2">${esc(pg.summary_vi || '')}</textarea></div><div class="form-group"><label class="form-label">Summary (EN)</label><textarea id="pgSummaryEn" class="form-control" rows="2">${esc(pg.summary_en || '')}</textarea></div></div>
+              <div class="grid-2"><div class="form-group"><label class="form-label">Nội dung HTML (VI) *</label><textarea id="pgContentVi" class="form-control" rows="7" required>${esc(pg.content_vi)}</textarea></div><div class="form-group"><label class="form-label">Content HTML (EN) *</label><textarea id="pgContentEn" class="form-control" rows="7" required>${esc(pg.content_en || '')}</textarea></div></div>
+              <div class="grid-3"><div class="form-group"><label class="form-label">SEO title (VI)</label><input id="pgSeoTitleVi" class="form-control" value="${esc(pg.seo_title_vi || '')}"></div><div class="form-group"><label class="form-label">SEO title (EN)</label><input id="pgSeoTitleEn" class="form-control" value="${esc(pg.seo_title_en || '')}"></div><div class="form-group"><label class="form-label">Thứ tự</label><input id="pgSortOrder" class="form-control" type="number" value="${Number(pg.sort_order || 1)}"></div></div>
+              <div class="grid-2"><div class="form-group"><label class="form-label">SEO description (VI)</label><textarea id="pgSeoDescVi" class="form-control" rows="2">${esc(pg.seo_description_vi || '')}</textarea></div><div class="form-group"><label class="form-label">SEO description (EN)</label><textarea id="pgSeoDescEn" class="form-control" rows="2">${esc(pg.seo_description_en || '')}</textarea></div></div>
+              <div class="form-group"><label class="form-label">Trạng thái</label><select id="pgStatus" class="form-control"><option value="draft" ${pg.status==='draft'?'selected':''}>Bản nháp</option><option value="published" ${pg.status==='published'?'selected':''}>Đã xuất bản</option><option value="archived" ${pg.status==='archived'?'selected':''}>Lưu trữ</option></select></div>
               <button type="submit" class="btn btn-primary">Lưu Trang vào D1</button>
             </form>
           </div>
@@ -2534,13 +2584,20 @@ function renderDashboardSubTab(subVp, tab) {
               method: 'POST',
               body: JSON.stringify({
                 id: pg.id,
-                slug: pg.slug,
+                slug: document.getElementById('pgSlug').value.trim(),
                 title_vi: document.getElementById('pgTitleVi').value.trim(),
                 title_en: document.getElementById('pgTitleEn').value.trim(),
                 content_vi: document.getElementById('pgContentVi').value.trim(),
                 content_en: document.getElementById('pgContentEn').value.trim(),
+                summary_vi: document.getElementById('pgSummaryVi').value.trim(),
+                summary_en: document.getElementById('pgSummaryEn').value.trim(),
+                seo_title_vi: document.getElementById('pgSeoTitleVi').value.trim(),
+                seo_title_en: document.getElementById('pgSeoTitleEn').value.trim(),
+                seo_description_vi: document.getElementById('pgSeoDescVi').value.trim(),
+                seo_description_en: document.getElementById('pgSeoDescEn').value.trim(),
+                sort_order: Number(document.getElementById('pgSortOrder').value || 1),
                 page_group: pg.page_group,
-                status: 'published'
+                status: document.getElementById('pgStatus').value
               })
             });
             await loadInitialData();
@@ -2562,6 +2619,7 @@ function renderDashboardSubTab(subVp, tab) {
       <div class="card" style="margin-bottom:20px;">
         <h3>Thêm / Cập nhật Mục Menu hoặc Liên kết Footer</h3>
         <form id="cmsMenuForm" style="margin-top:12px;">
+          <input id="mId" type="hidden" value="">
           <div class="grid-3">
             <div class="form-group">
               <label class="form-label">Vị trí hiển thị</label>
@@ -2577,8 +2635,10 @@ function renderDashboardSubTab(subVp, tab) {
             <div class="form-group"><label class="form-label">Nhãn Tiếng Anh *</label><input id="mLabelEn" class="form-control" required></div>
             <div class="form-group"><label class="form-label">Đường dẫn đích (URL) *</label><input id="mTargetUrl" class="form-control" placeholder="/gioi-thieu" required></div>
             <div class="form-group"><label class="form-label">Thứ tự</label><input id="mSortOrder" type="number" class="form-control" value="1"></div>
+            <div class="form-group"><label class="form-label"><input id="mVisible" type="checkbox" checked> Hiển thị</label></div>
+            <div class="form-group"><label class="form-label"><input id="mNewTab" type="checkbox"> Mở tab mới</label></div>
           </div>
-          <button type="submit" class="btn btn-primary">Lưu Mục Điều hướng vào D1</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveMenu">Lưu Mục Điều hướng vào D1</button> <button type="button" class="btn btn-secondary" id="btnResetMenu">Mục mới / Làm trống biểu mẫu</button>
         </form>
       </div>
       <div class="grid-2" style="margin-bottom:20px;">
@@ -2587,7 +2647,7 @@ function renderDashboardSubTab(subVp, tab) {
           <form id="cmsSettingsForm" style="margin-top:10px;">
             <div class="form-group"><label class="form-label">Tiêu đề Banner (VI)</label><input id="setHeroTitleVi" class="form-control" value="${esc(AppState.settings.hero_title_vi || "")}"></div>
             <div class="form-group"><label class="form-label">Tiêu đề Banner (EN)</label><input id="setHeroTitleEn" class="form-control" value="${esc(AppState.settings.hero_title_en || "")}"></div>
-            <div class="form-group"><label class="form-label">Mô tả Banner (VI)</label><textarea id="setHeroSubVi" class="form-control" rows="2">${esc(AppState.settings.hero_subtitle_vi || "")}</textarea></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">Mô tả Banner (VI)</label><textarea id="setHeroSubVi" class="form-control" rows="3">${esc(AppState.settings.hero_subtitle_vi || "")}</textarea></div><div class="form-group"><label class="form-label">Hero subtitle (EN)</label><textarea id="setHeroSubEn" class="form-control" rows="3">${esc(AppState.settings.hero_subtitle_en || "")}</textarea></div></div>
             <button type="submit" class="btn btn-primary btn-sm">Lưu Cấu hình Trang chủ vào D1</button>
           </form>
         </div>
@@ -2601,7 +2661,7 @@ function renderDashboardSubTab(subVp, tab) {
             <button type="submit" class="btn btn-secondary btn-sm">Thêm Chuyển hướng</button>
           </form>
           <ul style="list-style:none;margin-top:10px;font-size:12.5px;">
-            ${(d.cms?.redirects || []).map(r => `<li style="margin-bottom:4px;"><code>${esc(r.old_path)}</code> → <code>${esc(r.new_path)}</code> (${r.status_code})</li>`).join("")}
+            ${(d.cms?.redirects || []).map(r => `<li style="margin-bottom:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><code>${esc(r.old_path)}</code> → <code>${esc(r.new_path)}</code> (${r.status_code}) <button type="button" class="btn btn-sm btn-danger btn-delete-redirect" data-old-path="${esc(r.old_path)}">Xóa</button></li>`).join("")}
           </ul>
         </div>
       </div>
@@ -2634,7 +2694,8 @@ function renderDashboardSubTab(subVp, tab) {
             settings: {
               hero_title_vi: document.getElementById("setHeroTitleVi").value.trim(),
               hero_title_en: document.getElementById("setHeroTitleEn").value.trim(),
-              hero_subtitle_vi: document.getElementById("setHeroSubVi").value.trim()
+              hero_subtitle_vi: document.getElementById("setHeroSubVi").value.trim(),
+              hero_subtitle_en: document.getElementById("setHeroSubEn").value.trim()
             }
           })
         });
@@ -2645,6 +2706,8 @@ function renderDashboardSubTab(subVp, tab) {
         showToast(err.message, true);
       }
     });
+
+    subVp.querySelectorAll('.btn-delete-redirect').forEach(btn => btn.addEventListener('click', async () => { const oldPath=btn.dataset.oldPath||''; if(!oldPath||!window.confirm(`Xóa chuyển hướng ${oldPath}?`))return; try { await apiFetch(`/api/cms/redirects/${encodeURIComponent(oldPath.replace(/^\//,''))}`,{method:'DELETE'}); await loadInitialData(); showToast('Đã xóa chuyển hướng.'); renderRoute(); } catch(err) { showToast(err.message,true); } }));
 
     document.getElementById("cmsRedirectForm")?.addEventListener("submit", async e => {
       e.preventDefault();
@@ -2684,18 +2747,24 @@ function renderDashboardSubTab(subVp, tab) {
       });
     });
 
+    const resetMenuForm = () => { document.getElementById('mId').value=''; document.getElementById('mLocation').value='main_header'; document.getElementById('mLabelVi').value=''; document.getElementById('mLabelEn').value=''; document.getElementById('mTargetUrl').value=''; document.getElementById('mSortOrder').value='1'; document.getElementById('mVisible').checked=true; document.getElementById('mNewTab').checked=false; document.getElementById('btnSaveMenu').textContent='Lưu Mục Điều hướng vào D1'; };
+    document.getElementById('btnResetMenu')?.addEventListener('click', resetMenuForm);
+    subVp.querySelectorAll('.btn-edit-menu').forEach(btn => btn.addEventListener('click', () => { const m=menus.find(x=>String(x.id)===btn.dataset.menuId); if(!m)return; document.getElementById('mId').value=m.id; document.getElementById('mLocation').value=m.menu_location; document.getElementById('mLabelVi').value=m.label_vi||''; document.getElementById('mLabelEn').value=m.label_en||''; document.getElementById('mTargetUrl').value=m.target_url||''; document.getElementById('mSortOrder').value=Number(m.sort_order||1); document.getElementById('mVisible').checked=Boolean(Number(m.is_visible)); document.getElementById('mNewTab').checked=Boolean(Number(m.open_in_new_tab)); document.getElementById('btnSaveMenu').textContent='Cập nhật mục menu'; document.getElementById('cmsMenuForm').scrollIntoView({behavior:'smooth',block:'start'}); }));
+    subVp.querySelectorAll('.btn-delete-menu').forEach(btn => btn.addEventListener('click', async () => { const m=menus.find(x=>String(x.id)===btn.dataset.menuId); if(!m||!window.confirm(`Xóa mục menu “${m.label_vi}”?`))return; try { await apiFetch(`/api/cms/menus/${encodeURIComponent(m.id)}`,{method:'DELETE'}); await loadInitialData(); renderShell(); showToast('Đã xóa mục menu.'); renderRoute(); } catch(err) { showToast(err.message,true); } }));
     document.getElementById('cmsMenuForm')?.addEventListener('submit', async e => {
       e.preventDefault();
       try {
         await apiFetch('/api/cms/menus', {
           method: 'POST',
           body: JSON.stringify({
+            id: document.getElementById('mId').value || undefined,
             menu_location: document.getElementById('mLocation').value,
             label_vi: document.getElementById('mLabelVi').value.trim(),
             label_en: document.getElementById('mLabelEn').value.trim(),
             target_url: document.getElementById('mTargetUrl').value.trim(),
             sort_order: Number(document.getElementById('mSortOrder').value || 1),
-            is_visible: true
+            is_visible: document.getElementById('mVisible').checked,
+            open_in_new_tab: document.getElementById('mNewTab').checked
           })
         });
         await loadInitialData();

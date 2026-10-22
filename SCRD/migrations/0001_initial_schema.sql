@@ -954,34 +954,17 @@ INSERT OR IGNORE INTO cms_pages (id, slug, title_vi, title_en, summary_vi, summa
  '<p>If you need assistance with account registration, request code lookup, document downloads, or academic assessments, please submit a support ticket or email our official support channel:</p><ul><li><strong>Official Support Email:</strong> <a href="mailto:support@skyfirst.io.vn">support@skyfirst.io.vn</a></li></ul>',
  'support', 'Hỗ trợ người dùng | Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First', 'Cổng hỗ trợ người dùng Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.', 9, 'published', '2026-10-01T08:00:00Z');
 
--- Initial CMS Posts (Published Official Announcements + 1 Unlocked AI Draft Post)
-INSERT OR IGNORE INTO cms_posts (id, slug, custom_path, title_vi, title_en, excerpt_vi, excerpt_en, content_vi, content_en, category, tags_json, display_author, is_ai_generated, is_locked, status, seo_title, seo_description, published_at) VALUES
-('post_1', 'ra-mat-nen-tang-so-sky-first-center', '/tin-tuc-hoat-dong/ra-mat-nen-tang-so-sky-first-center',
- 'Vận hành Hệ thống Thông tin và Quản trị Nghiên cứu Sky First Center',
- 'Operating the Sky First Center Information and Research Governance System',
- 'Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First đưa vào vận hành cổng thông tin tích hợp quản lý nghiên cứu khoa học, dự án cộng đồng và khảo thí học thuật.',
- 'Sky First Center for Research and Development operates its integrated portal for scientific research, community projects, and academic assessment.',
- '<p>Nhằm chuẩn hóa quy trình quản lý khoa học và phục vụ cộng đồng, <strong>Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First</strong> triển khai nền tảng số hóa đồng bộ trên trình duyệt web.</p><p>Hệ thống tích hợp quy trình đăng ký tài khoản 5 bước với mã yêu cầu <code>SCRD-SFN-</code>, quản trị nội dung minh bạch và bảo vệ dữ liệu cá nhân theo chuẩn mực an toàn thông tin.</p>',
- '<p>To standardize scientific management and community service workflows, <strong>Sky First Center for Research and Development</strong> deploys a unified web platform.</p><p>The system integrates a 5-step account registration workflow with <code>SCRD-SFN-</code> tracking codes, transparent content management, and strict personal data protection.</p>',
- 'Hoạt động Trung tâm', '["Hệ thống số", "Quản trị nghiên cứu", "Cộng đồng"]', 'Ban Biên tập Sky First', 0, 0, 'published',
- 'Vận hành Hệ thống Thông tin Sky First Center', 'Thông báo chính thức về việc vận hành cổng thông tin Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.', '2026-10-15T09:00:00Z'),
+-- No news posts are seeded. The public news page remains empty until an editor publishes verified content.
 
-('post_2', 'quy-chuan-dang-ky-tai-khoan-va-bao-mat-dinh-danh', '/tin-tuc-hoat-dong/quy-chuan-dang-ky-tai-khoan-va-bao-mat-dinh-danh',
- 'Hướng dẫn Quy chuẩn Đăng ký Tài khoản 5 Bước và Bảo vệ Dữ liệu Cá nhân',
- 'Guidelines on the 5-Step Account Registration Standard and Personal Data Protection',
- 'Quy trình xét duyệt tài khoản tại Trung tâm đảm bảo kiểm soát phân quyền chặt chẽ, bảo vệ người chưa thành niên và không tiết lộ dữ liệu định danh qua email.',
- 'The account approval workflow ensures strict role-based access control, minor protection, and zero sensitive ID exposure in emails.',
- '<p>Mọi hồ sơ đăng ký tài khoản tại Trung tâm đều được cấp mã tra cứu duy nhất theo cấu trúc <code>SCRD-SFN-</code> kèm 10 chữ số ngẫu nhiên mật mã sau khi lưu thành công vào hệ thống. Người đăng ký có thể chủ động kiểm tra trạng thái xử lý trực tuyến mà không lộ thông tin nhạy cảm.</p>',
- '<p>Every account application at the Center is assigned a unique tracking code following the <code>SCRD-SFN-</code> + 10 cryptographically random digits format after database confirmation, allowing secure status lookup without exposing sensitive identity data.</p>',
- 'Thông báo Học thuật', '["Bảo mật dữ liệu", "Tài khoản", "Quy chuẩn"]', 'Khối Quản trị Dữ liệu', 0, 0, 'published',
- 'Quy chuẩn Đăng ký Tài khoản 5 Bước | Sky First Center', 'Hướng dẫn chi tiết quy trình đăng ký và bảo mật dữ liệu cá nhân tại Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.', '2026-10-18T10:30:00Z'),
 
-('post_3_ai', 'ai-draft-phuong-phap-danh-gia-tac-dong-cong-dong', '/tin-tuc-hoat-dong/phuong-phap-danh-gia-tac-dong-cong-dong',
- '[Bản nháp AI] Khung Phương pháp Đánh giá Tác động Dự án Phát triển Cộng đồng',
- '[AI Draft] Methodological Framework for Community Project Impact Assessment',
- 'Bài viết do trợ lý AI khởi tạo tự động dưới dạng bản nháp để Quản trị viên rà soát, chỉnh sửa toàn diện tiêu đề, nội dung, slug và trạng thái trước khi xuất bản.',
- 'AI-generated draft article saved as draft by default for Administrators to review and edit all fields before publication.',
- '<p>Bài viết này được hệ thống AI hỗ trợ tổng hợp nháp về phương pháp theo dõi tiến độ và đánh giá minh chứng trong các dự án cộng đồng. Quản trị viên có toàn quyền chỉnh sửa tiêu đề, mô tả, nội dung, chuyên mục, đường dẫn (slug), thẻ, ảnh đại diện, SEO và quyết định xuất bản hoặc gỡ xuất bản bất kỳ lúc nào.</p>',
- '<p>This draft article was synthesized by the AI assistant regarding milestone tracking and evidence evaluation in community projects. Administrators have full permissions to edit the title, description, body, category, slug, tags, featured image, SEO, and publication status at any time.</p>',
- 'Nghiên cứu Khoa học', '["AI Draft", "Phương pháp luận", "Dự án cộng đồng"]', 'AI Editorial Assistant', 1, 0, 'draft',
- 'Khung Phương pháp Đánh giá Tác động Cộng đồng', 'Bản nháp nghiên cứu phương pháp đánh giá tác động cộng đồng.', NULL);
+-- Keep footer connections limited to known official channels. Apply these rows to both clean installs and subsequent migrations.
+UPDATE cms_menus SET label_vi='Email hỗ trợ', label_en='Support email', target_url='mailto:support@skyfirst.io.vn', link_type='external', sort_order=1, is_visible=1 WHERE id='menu_f3_1';
+UPDATE cms_menus SET label_vi='Website Sky First', label_en='Sky First website', target_url='https://www.skyfirst.io.vn', link_type='external', sort_order=2, is_visible=1 WHERE id='menu_f3_2';
+UPDATE cms_menus SET label_vi='Facebook Sky First Network', label_en='Sky First Network on Facebook', target_url='https://fb.com/skyfirstnetwork', link_type='external', sort_order=3, is_visible=1 WHERE id='menu_f3_3';
+DELETE FROM cms_menus WHERE id IN ('menu_f3_4','menu_f3_5');
+
+-- Canonical information-security policy page; explanatory only, not a legal guarantee.
+INSERT OR IGNORE INTO cms_pages
+(id,slug,title_vi,title_en,summary_vi,summary_en,content_vi,content_en,page_group,seo_title_vi,seo_title_en,seo_description_vi,seo_description_en,sort_order,status,version,published_at,created_at,updated_at)
+VALUES
+('page_10','an-toan-thong-tin','An toàn thông tin','Information Security','Nguyên tắc bảo vệ tài khoản, dữ liệu và tài liệu trên hệ thống của Trung tâm.','Principles for protecting accounts, data and documents on the Center’s systems.','<h2>Nguyên tắc an toàn thông tin</h2><p>Trung tâm áp dụng phân quyền truy cập, kiểm soát phiên và biện pháp bảo vệ phù hợp đối với dữ liệu và tài liệu trên hệ thống. Người dùng cần bảo vệ thông tin đăng nhập, không chia sẻ mã xác thực, đăng xuất khi sử dụng thiết bị dùng chung và báo cáo kịp thời dấu hiệu truy cập bất thường.</p><p>Quyền truy cập được cấp theo nhiệm vụ và có thể được điều chỉnh khi thay đổi vai trò. Không gửi giấy tờ định danh hoặc dữ liệu cá nhân nhạy cảm qua kênh chưa được Trung tâm xác nhận.</p><p>Khi phát hiện sự cố, vui lòng liên hệ <a href="mailto:support@skyfirst.io.vn">support@skyfirst.io.vn</a>. Nội dung này mô tả nguyên tắc vận hành và không thay thế các chính sách hoặc quy định pháp luật áp dụng.</p>','<h2>Information security principles</h2><p>The Center applies access control, session safeguards and appropriate protections for system data and documents. Users should protect their sign-in information, never share verification codes, sign out on shared devices and promptly report suspected unauthorized access.</p><p>Access is granted according to responsibilities and may change when a role changes. Do not send identity documents or sensitive personal data through channels that the Center has not verified.</p><p>To report an incident, contact <a href="mailto:support@skyfirst.io.vn">support@skyfirst.io.vn</a>. This page describes operational principles and does not replace applicable policies or legal requirements.</p>','policy','An toàn thông tin | Sky First','Information Security | Sky First','Nguyên tắc bảo vệ tài khoản, dữ liệu và tài liệu của Trung tâm.','Principles for protecting accounts, data and Center documents.',10,'published',1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);
