@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First | Sky First Center for Research and Development</title>
   <meta name="description" content="Cổng thông tin chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First — Sky First Center for Research and Development.">
+  <meta property="og:title" content="Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First">
+  <meta property="og:description" content="Cổng thông tin về nghiên cứu khoa học ứng dụng, phát triển cộng đồng, khảo thí học thuật và công bố tri thức của Sky First.">
   <link rel="icon" href="/assets/sky-first-logo-trimmed.webp" type="image/webp">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <a class="skip-link" href="#appViewport">Chuyển đến nội dung chính</a>
 
-  <!-- TOP UTILITY BAR (Strictly public support info & user account navigation — no internal D1/R2 badges or Bootstrap triggers) -->
   <div class="utility-bar" role="region" aria-label="Thanh tiện ích tài khoản và hỗ trợ">
     <div class="utility-left">
       <span id="utilSupportLabel">Email hỗ trợ chính thức: <a href="mailto:support@skyfirst.io.vn" style="color:#67e8f9;font-weight:700;">support@skyfirst.io.vn</a></span>
@@ -24,7 +25,6 @@
     </div>
   </div>
 
-  <!-- OFFICIAL HEADER (Sky First brand logo with EDUCATION & COMMUNITY DEVELOPMENT on clean white surface) -->
   <header class="site-header">
     <div class="header-top">
       <a class="brand-identity" href="/" data-nav="/" aria-label="Trang chủ Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First">
@@ -37,6 +37,9 @@
         </div>
       </a>
       <div class="header-actions">
+        <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-controls="publicMainNav" aria-expanded="false" aria-label="Mở menu điều hướng">
+          <span class="mobile-nav-toggle-icon" aria-hidden="true">☰</span><span class="mobile-nav-toggle-label">Menu</span>
+        </button>
         <div class="lang-switch" role="group" aria-label="Chuyển đổi ngôn ngữ VI/EN">
           <button type="button" class="lang-btn active" id="btnLangVi" data-lang="vi">VI</button>
           <button type="button" class="lang-btn" id="btnLangEn" data-lang="en">EN</button>
@@ -45,19 +48,15 @@
         <a class="btn btn-primary" href="/dang-nhap" data-nav="/dang-nhap" id="headerPortalBtn">Đăng nhập</a>
       </div>
     </div>
-    <!-- 8 REQUIRED PUBLIC MENU ITEMS (Loaded dynamically from CMS / D1) -->
     <div class="main-nav-wrap">
       <nav class="main-nav" id="publicMainNav" aria-label="Menu chính"></nav>
     </div>
   </header>
 
-  <!-- MAIN ROUTE VIEWPORT -->
   <main id="appViewport" tabindex="-1"></main>
 
-  <!-- 4-COLUMN DESKTOP FOOTER (Section III.5: Col 1 Standalone Logo + VI/EN Names, Col 2 Về Trung tâm, Col 3 Kết nối Sky First, Col 4 Tài khoản Trung tâm) -->
   <footer class="site-footer">
     <div class="footer-grid">
-      <!-- Column 1: Standalone Official Sky First Logo + Vietnamese & English Names -->
       <div class="footer-col">
         <div class="footer-brand-logo-box">
           <img src="/assets/sky-first-logo-trimmed.webp" onerror="this.src='/assets/sky-first-logo.png'" alt="Sky First — Education & Community Development">
@@ -66,17 +65,14 @@
         <div style="font-size:13px;color:#cbd5e1;margin-bottom:10px;" id="footerNameEn">Sky First Center for Research and Development</div>
         <div style="font-size:12.5px;color:#94a3b8;">Email hỗ trợ: <a href="mailto:support@skyfirst.io.vn" style="color:#67e8f9;">support@skyfirst.io.vn</a></div>
       </div>
-      <!-- Column 2: Về Trung tâm -->
       <div class="footer-col">
         <h4 id="footerCol2Title">Về Trung tâm</h4>
         <ul class="footer-links" id="footerCol2Links"></ul>
       </div>
-      <!-- Column 3: Kết nối Sky First -->
       <div class="footer-col">
         <h4 id="footerCol3Title">Kết nối Sky First</h4>
         <ul class="footer-links" id="footerCol3Links"></ul>
       </div>
-      <!-- Column 4: Tài khoản Trung tâm -->
       <div class="footer-col">
         <h4 id="footerCol4Title">Tài khoản Trung tâm</h4>
         <ul class="footer-links" id="footerCol4Links"></ul>
@@ -88,7 +84,6 @@
     </div>
   </footer>
 
-  <!-- DETAIL MODAL -->
   <div class="modal-backdrop" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
     <div class="modal-box">
       <div class="modal-header">

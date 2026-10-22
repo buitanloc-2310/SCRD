@@ -7,12 +7,15 @@
 - Hồ sơ đăng ký được cấp mã duy nhất theo dạng `SCRD-SFN-` + 10 chữ số sau khi ghi D1 thành công.
 - Số định danh được mã hóa ở backend, đồng thời lưu hash và dạng che; tra cứu công khai không trả trường định danh hoặc ghi chú nội bộ.
 - Upload riêng tư không được phục vụ công khai; loại MIME ảnh được kiểm tra.
-- CMS làm sạch HTML đầu vào và chỉ lưu các khóa cấu hình cho phép.
+- CMS làm sạch HTML đầu vào và chỉ lưu các khóa cấu hình cho phép. Trang có thể tạo, cập nhật theo ID hoặc slug hiện có, đổi trạng thái xuất bản và xóa trang không thuộc nhóm trang hệ thống; các trang cốt lõi được chặn xóa nhầm.
+- Trang chủ và Giới thiệu có nội dung dài song ngữ qua migration D1, có kiểm tra tự động ngưỡng tối thiểu 4.000 từ/tokens cho mỗi ngôn ngữ.
+- Metadata tiêu đề/mô tả được cập nhật theo route và ngôn ngữ; link chính sách được ánh xạ về đúng slug bản ghi.
 - API không tồn tại và lỗi không tiết lộ chi tiết nội bộ trong phản hồi công khai.
 - Tích hợp Exam kiểm tra launch token dùng một lần, truy cập attempt, autosave theo revision, chấm điểm phía server và biên nhận.
 
 ## Kết quả test cục bộ được chạy khi đóng gói
 
+- Nội dung dài song ngữ: 4/4 kiểm tra ngưỡng tối thiểu PASS.
 - SCRD Worker + D1 SQLite + R2 giả lập: 14/14 PASS.
 - SCRD ↔ Exam trên D1 tạm thời dùng chung: 5/5 PASS.
 - Exam validation: 31/31 PASS.

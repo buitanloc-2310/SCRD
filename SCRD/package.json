@@ -9,10 +9,12 @@
     "test:scrd": "node tests/smoke.mjs",
     "test:integration": "node tests/integration.mjs",
     "test:exam": "cd EXAM && node scripts/validate.mjs",
-    "test": "npm run check && npm run test:scrd && npm run test:integration && npm run test:exam",
+    "test": "npm run check && npm run test:content && npm run test:ui && npm run test:scrd && npm run test:integration && npm run test:exam",
     "dev:scrd": "npx wrangler@4.34.0 dev --config wrangler.toml",
     "dev:exam": "npx wrangler@4.34.0 dev --config EXAM/wrangler.json",
     "deploy:scrd": "npm run check && npx wrangler@4.34.0 deploy --config wrangler.toml",
-    "deploy:exam": "npm run test:exam && npx wrangler@4.34.0 deploy --config EXAM/wrangler.json"
+    "deploy:exam": "npm run test:exam && npx wrangler@4.34.0 deploy --config EXAM/wrangler.json",
+    "test:content": "node tests/content-validation.mjs",
+    "test:ui": "node tests/ui-regression.mjs"
   }
 }

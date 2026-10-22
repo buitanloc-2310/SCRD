@@ -292,7 +292,22 @@ function clearAuthSession() {
   sessionStorage.removeItem('skyfirst_csrf');
 }
 
+function closeMobileNavigation() {
+  const nav = document.getElementById('publicMainNav');
+  const toggle = document.getElementById('mobileNavToggle');
+  nav?.classList.remove('is-open');
+  toggle?.setAttribute('aria-expanded', 'false');
+  if (toggle) {
+    toggle.setAttribute('aria-label', AppState.lang === 'vi' ? 'Mở menu điều hướng' : 'Open navigation menu');
+    const icon = toggle.querySelector('.mobile-nav-toggle-icon');
+    if (icon) icon.textContent = '☰';
+    const label = toggle.querySelector('.mobile-nav-toggle-label');
+    if (label) label.textContent = AppState.lang === 'vi' ? 'Menu' : 'Menu';
+  }
+}
+
 export function navigateTo(urlStr, replace = false) {
+  closeMobileNavigation();
   const parsed = new URL(urlStr, window.location.origin);
   // Check CMS Redirects
   const redirectMatch = AppState.redirects.find(r => r.old_path === parsed.pathname);
@@ -312,10 +327,85 @@ export function navigateTo(urlStr, replace = false) {
 
 export function setLanguage(lang) {
   AppState.lang = lang === 'en' ? 'en' : 'vi';
-  localStorage.setItem('skyfirst_lang', AppState.lang);
+  closeMobileNavigation();
+  try { localStorage.setItem('skyfirst_lang', AppState.lang); } catch {}
   document.documentElement.lang = AppState.lang;
   renderShell();
   renderRoute();
+}
+
+function updateDocumentMetadata(path, isVi) {
+  const siteVi = AppState.settings.site_name_vi || 'Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First';
+  const siteEn = AppState.settings.site_name_en || 'Sky First Center for Research and Development';
+  let title = isVi ? siteVi : siteEn;
+  let description = isVi
+    ? 'Cổng thông tin về nghiên cứu khoa học ứng dụng, phát triển cộng đồng, khảo thí học thuật và công bố tri thức của Sky First.'
+    : 'Information on applied scientific research, community development, academic assessment, and knowledge resources from Sky First.';
+  const directPolicySlugs = {'/chinh-sach-bao-mat':'chinh-sach-bao-ve-du-lieu','/dieu-khoan-su-dung':'dieu-khoan-su-dung','/an-toan-thong-tin':'an-toan-thong-tin'};
+  if (path === '/') {
+    const home = AppState.pages.find(p => p.slug === 'trang-chu-noi-dung');
+    const titleValue = home && (isVi ? home.seo_title_vi : home.seo_title_en);
+    const descValue = home && (isVi ? home.seo_description_vi : home.seo_description_en);
+    title = titleValue || (isVi ? 'Trang chủ | Sky First' : 'Home | Sky First');
+    description = descValue || description;
+  } else if (path === '/gioi-thieu' || path.startsWith('/gioi-thieu/') || directPolicySlugs[path]) {
+    const subPath = path.startsWith('/gioi-thieu/') ? path.split('/').filter(Boolean)[1] : null;
+    const slug = AppState.currentQuery.get('section') || subPath || directPolicySlugs[path] || 'tong-quan';
+    const pg = AppState.pages.find(p => p.slug === slug);
+    if (pg) {
+      title = (isVi ? pg.seo_title_vi : pg.seo_title_en) || (isVi ? pg.title_vi : (pg.title_en || pg.title_vi));
+      description = (isVi ? pg.seo_description_vi : pg.seo_description_en) || (isVi ? pg.summary_vi : (pg.summary_en || pg.summary_vi)) || description;
+    }
+  } else if (path.startsWith('/tin-tuc-hoat-dong/')) {
+    const slug = path.split('/').filter(Boolean)[1];
+    const post = AppState.posts.find(p => p.slug === slug || p.custom_path === path);
+    if (post) {
+      title = post.seo_title || (isVi ? post.title_vi : (post.title_en || post.title_vi));
+      description = isVi ? (post.seo_description || post.excerpt_vi || description) : (post.excerpt_en || post.seo_description || description);
+    }
+  } else {
+    const routeTitles = {
+      '/nghien-cuu-khoa-hoc':['Nghiên cứu khoa học','Scientific Research'],
+      '/du-an-cong-dong':['Dự án cộng đồng','Community Projects'],
+      '/khao-thi-danh-gia':['Khảo thí và Đánh giá học thuật','Academic Assessment'],
+      '/cong-bo-tai-lieu':['Công bố và Tài liệu','Publications and Resources'],
+      '/hop-tac-doi-tac':['Hợp tác và Đối tác','Cooperation and Partners'],
+      '/tin-tuc-hoat-dong':['Tin tức và Hoạt động','News and Activities'],
+      '/dang-ky':['Yêu cầu cấp tài khoản','Account Registration'],
+      '/tra-cuu':['Tra cứu hồ sơ','Track a Request'],
+      '/dang-nhap':['Đăng nhập','Sign In'],
+      '/quen-mat-khau':['Khôi phục mật khẩu','Password Recovery'],
+      '/bang-dieu-khien':['Bảng điều khiển','Dashboard'],
+      '/quan-tri':['Quản trị','Administration']
+    };
+    const routeTitle = routeTitles[path];
+    if (routeTitle) title = isVi ? routeTitle[0] : routeTitle[1];
+    else if (path !== '/') title = isVi ? 'Không tìm thấy trang | Sky First' : 'Page Not Found | Sky First';
+  }
+  const siteName = isVi ? siteVi : siteEn;
+  document.title = title.toLocaleLowerCase().includes(siteName.toLocaleLowerCase()) ? title : `${title} | ${siteName}`;
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta) meta.setAttribute('content', String(description).slice(0, 500));
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.setAttribute('content', document.title);
+  const ogDescription = document.querySelector('meta[property="og:description"]');
+  if (ogDescription) ogDescription.setAttribute('content', String(description).slice(0, 500));
+}
+
+function getSafeMenuTarget(rawTarget) {
+  const value = String(rawTarget || '').trim();
+  if (value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')) {
+    return { href: value, internal: true, externalWeb: false };
+  }
+  try {
+    const parsed = new URL(value);
+    if (parsed.username || parsed.password) return null;
+    if (parsed.protocol === 'mailto:') return { href: value, internal: false, externalWeb: false };
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return { href: value, internal: false, externalWeb: true };
+    }
+  } catch {}
+  return null;
 }
 
 function renderShell() {
@@ -325,6 +415,7 @@ function renderShell() {
 
   document.getElementById('btnLangVi')?.classList.toggle('active', isVi);
   document.getElementById('btnLangEn')?.classList.toggle('active', !isVi);
+  document.getElementById('mobileNavToggle')?.setAttribute('aria-label', isVi ? 'Mở menu điều hướng' : 'Open navigation menu');
 
   const supportEl = document.getElementById('utilSupportLabel');
   if (supportEl) {
@@ -384,10 +475,15 @@ function renderShell() {
   const navEl = document.getElementById('publicMainNav');
   if (navEl) {
     navEl.innerHTML = mainMenus.map(m => {
+      const target = getSafeMenuTarget(m.target_url);
+      if (!target) return '';
       const label = isVi ? m.label_vi : (m.label_en || m.label_vi);
-      const isActive = (m.target_url === '/' && AppState.currentPath === '/') ||
-                       (m.target_url !== '/' && AppState.currentPath.startsWith(m.target_url));
-      return `<a class="nav-item ${isActive ? 'active' : ''}" href="${esc(m.target_url)}" data-nav="${esc(m.target_url)}">${esc(label)}</a>`;
+      const activeTarget = target.internal ? target.href.split('?')[0].replace(/\/$/, '') || '/' : '';
+      const isActive = target.internal && ((activeTarget === '/' && AppState.currentPath === '/') ||
+                       (activeTarget !== '/' && AppState.currentPath.startsWith(activeTarget)));
+      const navAttr = target.internal ? `data-nav="${esc(target.href)}"` : '';
+      const externalAttrs = target.externalWeb ? ' target="_blank" rel="noopener noreferrer"' : '';
+      return `<a class="nav-item ${isActive ? 'active' : ''}" href="${esc(target.href)}" ${navAttr}${externalAttrs}>${esc(label)}</a>`;
     }).join('');
   }
 
@@ -400,15 +496,21 @@ function renderShell() {
     if (!el) return;
     if (location === 'footer_bottom') {
       el.innerHTML = items.map(m => {
+        const target = getSafeMenuTarget(m.target_url);
+        if (!target) return '';
         const label = isVi ? m.label_vi : (m.label_en || m.label_vi);
-        const isInternal = m.target_url.startsWith('/');
-        return `<a href="${esc(m.target_url)}" ${isInternal ? `data-nav="${esc(m.target_url)}"` : 'target="_blank" rel="noopener"'}>${esc(label)}</a>`;
+        const navAttr = target.internal ? `data-nav="${esc(target.href)}"` : '';
+        const externalAttrs = target.externalWeb ? ' target="_blank" rel="noopener noreferrer"' : '';
+        return `<a href="${esc(target.href)}" ${navAttr}${externalAttrs}>${esc(label)}</a>`;
       }).join('');
     } else {
       el.innerHTML = items.map(m => {
+        const target = getSafeMenuTarget(m.target_url);
+        if (!target) return '';
         const label = isVi ? m.label_vi : (m.label_en || m.label_vi);
-        const isInternal = m.target_url.startsWith('/');
-        return `<li><a href="${esc(m.target_url)}" ${isInternal ? `data-nav="${esc(m.target_url)}"` : 'target="_blank" rel="noopener"'}>${esc(label)}</a></li>`;
+        const navAttr = target.internal ? `data-nav="${esc(target.href)}"` : '';
+        const externalAttrs = target.externalWeb ? ' target="_blank" rel="noopener noreferrer"' : '';
+        return `<li><a href="${esc(target.href)}" ${navAttr}${externalAttrs}>${esc(label)}</a></li>`;
       }).join('');
     }
   };
@@ -434,20 +536,35 @@ export async function renderRoute() {
   const isVi = AppState.lang === 'vi';
   const t = I18N[AppState.lang];
   const path = AppState.currentPath;
+  document.documentElement.lang = isVi ? 'vi' : 'en';
+  updateDocumentMetadata(path, isVi);
 
   if (AppState.loading) {
-    vp.innerHTML = `<div class="container"><div class="empty-state"><h3>${esc(t.loading)}</h3></div></div>`;
+    vp.innerHTML = `
+      <section class="container page-state-shell" aria-live="polite" aria-busy="true">
+        <div class="page-state-card">
+          <span class="page-state-spinner" aria-hidden="true"></span>
+          <p class="page-state-kicker">${isVi ? 'SKY FIRST · TRUNG TÂM NGHIÊN CỨU VÀ PHÁT TRIỂN CỘNG ĐỒNG' : 'SKY FIRST · CENTER FOR RESEARCH AND DEVELOPMENT'}</p>
+          <h1>${isVi ? 'Đang chuẩn bị không gian làm việc' : 'Preparing your workspace'}</h1>
+          <p>${esc(t.loading)}</p>
+        </div>
+      </section>
+    `;
     return;
   }
 
   if (AppState.loadError) {
     vp.innerHTML = `
-      <div class="container">
-        <div class="alert-box alert-error">
-          <strong>Lỗi kết nối máy chủ:</strong> ${esc(AppState.loadError)}
+      <section class="container page-state-shell" role="alert">
+        <div class="page-state-card page-state-error">
+          <div class="page-state-symbol" aria-hidden="true">!</div>
+          <p class="page-state-kicker">${isVi ? 'KẾT NỐI HỆ THỐNG' : 'SYSTEM CONNECTION'}</p>
+          <h1>${isVi ? 'Chưa thể tải dữ liệu' : 'Unable to load data yet'}</h1>
+          <p>${isVi ? 'Máy chủ chưa phản hồi như mong đợi. Hãy kiểm tra kết nối và thử lại; các dữ liệu tài khoản vẫn được bảo vệ.' : 'The server did not respond as expected. Check your connection and try again; account information remains protected.'}</p>
+          <div class="alert-box alert-error">${isVi ? 'Vui lòng thử lại sau. Nếu sự cố tiếp diễn, liên hệ ' : 'Please try again later. If the issue continues, contact '}<a href="mailto:support@skyfirst.io.vn">support@skyfirst.io.vn</a>.</div>
+          <button type="button" class="btn btn-primary" id="btnRetryInit">${isVi ? 'Thử kết nối lại' : 'Retry connection'}</button>
         </div>
-        <button type="button" class="btn btn-primary" id="btnRetryInit">Thử tải lại</button>
-      </div>
+      </section>
     `;
     document.getElementById('btnRetryInit')?.addEventListener('click', async () => {
       await loadInitialData();
@@ -511,27 +628,32 @@ function renderHomeView(vp, isVi, t) {
     <section class="hero-banner">
       <div class="hero-grid">
         <div>
-          <span class="eyebrow" style="background:rgba(24,200,245,0.2);color:#67e8f9;">
+          <span class="eyebrow hero-eyebrow">
             ${esc(isVi ? s.hero_eyebrow_vi : s.hero_eyebrow_en)}
           </span>
           <h1 class="hero-title">${esc(isVi ? s.hero_title_vi : s.hero_title_en)}</h1>
           <p class="hero-lead">${esc(isVi ? s.hero_subtitle_vi : s.hero_subtitle_en)}</p>
           <div class="hero-btns">
-            <a class="btn btn-primary" style="background:#18c8f5;color:#041633;font-weight:800;" href="/gioi-thieu" data-nav="/gioi-thieu">
+            <a class="btn btn-primary hero-btn-primary" href="/gioi-thieu" data-nav="/gioi-thieu">
               ${esc(isVi ? (s.hero_cta_primary_vi || 'Giới thiệu Trung tâm') : (s.hero_cta_primary_en || 'About the Center'))}
             </a>
-            <a class="btn btn-secondary" style="background:rgba(255,255,255,0.14);color:#ffffff;border-color:rgba(255,255,255,0.35);" href="/dang-ky" data-nav="/dang-ky">
+            <a class="btn btn-secondary hero-btn-ghost" href="/dang-ky" data-nav="/dang-ky">
               ${esc(isVi ? (s.hero_cta_secondary_vi || 'Yêu cầu cấp tài khoản') : (s.hero_cta_secondary_en || 'Request Account'))}
             </a>
-            <a class="btn btn-secondary" style="background:rgba(255,255,255,0.14);color:#ffffff;border-color:rgba(255,255,255,0.35);" href="/tra-cuu" data-nav="/tra-cuu">
+            <a class="btn btn-secondary hero-btn-ghost" href="/tra-cuu" data-nav="/tra-cuu">
               ${esc(isVi ? 'Tra cứu yêu cầu' : 'Track Request')}
             </a>
           </div>
         </div>
         <div class="hero-visual">
           <img src="/assets/sky-first-logo-trimmed.webp" onerror="this.src='/assets/sky-first-logo.png'" alt="Sky First — Education & Community Development">
-          <div style="font-weight:800;font-size:16px;color:var(--navy-900);">${esc(s.site_name_vi)}</div>
-          <div style="font-size:13px;color:var(--blue-600);font-weight:600;margin-top:4px;">${esc(s.site_name_en)}</div>
+          <div class="hero-visual-name">${esc(s.site_name_vi)}</div>
+          <div class="hero-visual-en">${esc(s.site_name_en)}</div>
+          <div class="hero-focus-points" aria-label="${isVi ? 'Lĩnh vực trọng tâm' : 'Core areas'}">
+            <span>${isVi ? 'Nghiên cứu khoa học' : 'Scientific research'}</span>
+            <span>${isVi ? 'Khảo thí học thuật' : 'Academic assessment'}</span>
+            <span>${isVi ? 'Phát triển cộng đồng' : 'Community development'}</span>
+          </div>
         </div>
       </div>
     </section>
@@ -683,6 +805,14 @@ function renderHomeView(vp, isVi, t) {
         </div>
       </div>
     </section>
+
+    ${(() => {
+      const longform = AppState.pages.find(p => p.slug === 'trang-chu-noi-dung' && p.page_group === 'home');
+      if (!longform) return '';
+      const longTitle = isVi ? longform.title_vi : (longform.title_en || longform.title_vi);
+      const longBody = isVi ? longform.content_vi : (longform.content_en || longform.content_vi);
+      return `<section class="container longform-shell"><div class="section-head"><div><span class="eyebrow">${isVi ? 'THÔNG TIN CHUYÊN SÂU' : 'IN-DEPTH INFORMATION'}</span><h2 class="section-title">${esc(longTitle)}</h2></div></div><article class="longform-content">${safeRichHtml(longBody)}</article></section>`;
+    })()}
   `;
 }
 
@@ -692,12 +822,12 @@ function renderHomeView(vp, isVi, t) {
 function renderAboutView(vp, isVi) {
   const pathParts = AppState.currentPath.split('/').filter(Boolean);
   const slugFromPath = pathParts.length > 1 ? pathParts[1] : null;
-  const directPolicySlugs = {'/chinh-sach-bao-mat':'chinh-sach-bao-mat','/dieu-khoan-su-dung':'dieu-khoan-su-dung','/an-toan-thong-tin':'an-toan-thong-tin'};
+  const directPolicySlugs = {'/chinh-sach-bao-mat':'chinh-sach-bao-ve-du-lieu','/dieu-khoan-su-dung':'dieu-khoan-su-dung','/an-toan-thong-tin':'an-toan-thong-tin'};
   const requestedSlug = AppState.currentQuery.get('section') || slugFromPath || directPolicySlugs[AppState.currentPath] || 'tong-quan';
-  const activePage = AppState.pages.find(p => p.slug === requestedSlug) || AppState.pages[0];
+  const activePage = AppState.pages.find(p => p.slug === requestedSlug);
 
   if (!activePage) {
-    vp.innerHTML = `<div class="container"><div class="empty-state"><h3>Chưa có dữ liệu trang giới thiệu.</h3></div></div>`;
+    vp.innerHTML = `<div class="container"><div class="empty-state"><h1 class="section-title">404 — ${isVi ? 'Không tìm thấy trang' : 'Page Not Found'}</h1><p>${isVi ? 'Trang thông tin này không tồn tại hoặc chưa được xuất bản.' : 'This information page does not exist or has not been published.'}</p><a class="btn btn-primary" href="/gioi-thieu" data-nav="/gioi-thieu">${isVi ? 'Về Giới thiệu' : 'About the Center'}</a></div></div>`;
     return;
   }
 
@@ -716,7 +846,7 @@ function renderAboutView(vp, isVi) {
       <div class="subpage-layout">
         <aside class="side-menu" aria-label="Danh mục trang thông tin">
           <div class="side-menu-head">${isVi ? 'Danh mục Thông tin Trung tâm' : 'Information Directory'}</div>
-          ${AppState.pages.map(pg => {
+          ${AppState.pages.filter(pg => pg.page_group !== 'home').map(pg => {
             const pgTitle = isVi ? pg.title_vi : (pg.title_en || pg.title_vi);
             return `
               <a class="side-menu-item ${pg.slug === activePage.slug ? 'active' : ''}"
@@ -728,17 +858,13 @@ function renderAboutView(vp, isVi) {
           }).join('')}
         </aside>
         <article class="doc-panel">
-          <div style="border-bottom:1px solid var(--line-200);padding-bottom:12px;margin-bottom:20px;display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-500);flex-wrap:wrap;gap:8px;">
-            <span>Slug: <code>/gioi-thieu?section=${esc(activePage.slug)}</code></span>
-            <span>${isVi ? 'Cập nhật:' : 'Updated:'} ${esc((activePage.updated_at || '').slice(0, 10))}</span>
-          </div>
-          <div style="font-size:15px;line-height:1.8;">${safeRichHtml(content)}</div>
+          <div class="longform-content" style="font-size:15px;line-height:1.8;">${safeRichHtml(content)}</div>
 
           ${showSupportForm ? `
             <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--line-200);">
               <h3>${isVi ? 'Gửi Phiếu Yêu cầu Hỗ trợ Trực tuyến' : 'Submit an Online Support Ticket'}</h3>
               <p style="font-size:13.5px;color:var(--ink-700);margin-bottom:16px;">
-                ${isVi ? 'Mọi yêu cầu sẽ được lưu trực tiếp vào hệ thống và phản hồi qua email hỗ trợ chính thức support@skyfirst.io.vn.' : 'Your inquiry will be recorded in our support system and answered via support@skyfirst.io.vn.'}
+                ${isVi ? 'Mọi yêu cầu sẽ được lưu vào hệ thống. Việc gửi phiếu không bảo đảm thời hạn hoặc kết quả xử lý cụ thể.' : 'Your request will be recorded in the support system. Submission does not guarantee a particular response time or outcome.'}
               </p>
               <form id="publicSupportForm">
                 <div class="grid-2">
@@ -797,10 +923,10 @@ function renderAboutView(vp, isVi) {
           message: document.getElementById('supMessage').value.trim()
         })
       });
-      msgBox.innerHTML = `<div class="alert-box alert-success">Đã ghi nhận phiếu hỗ trợ mã <strong>${esc(res.ticket_code)}</strong>. Bộ phận hỗ trợ sẽ phản hồi qua email bạn đã cung cấp.</div>`;
+      msgBox.innerHTML = `<div class="alert-box alert-success">${isVi ? 'Đã ghi nhận phiếu hỗ trợ mã' : 'Support request recorded with reference'} <strong>${esc(res.ticket_code)}</strong>. ${isVi ? 'Thông tin tiếp nhận đã được lưu; thời gian phản hồi phụ thuộc nội dung và khối lượng yêu cầu.' : 'The receipt is recorded; response timing depends on the request and current workload.'}</div>`;
       e.target.reset();
     } catch (err) {
-      msgBox.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
+      msgBox.innerHTML = `<div class="alert-box alert-error">${esc(err.message || (isVi ? 'Không gửi được yêu cầu. Vui lòng thử lại.' : 'Could not submit the request. Please try again.'))}</div>`;
     } finally {
       btn.disabled = false;
     }
@@ -1538,7 +1664,7 @@ function renderRegStepContent(d, age, isMinor) {
     return `
       <h3>Bước 3 — Thông tin định danh & Tải tệp bảo mật</h3>
       <p style="font-size:13px;color:var(--emerald-600);margin:6px 0 14px;">
-        🔒 Số giấy tờ định danh được mã hóa AES-256-GCM bằng khóa bí mật phía máy chủ và tệp ảnh được lưu riêng tư trên R2. Tuyệt đối không gửi qua email.
+        🔒 Thông tin định danh và tệp đính kèm được bảo vệ theo chính sách dữ liệu của Trung tâm. Vui lòng chỉ tải lên tài liệu thuộc về bạn và không gửi giấy tờ định danh qua email.
       </p>
       <div class="grid-2">
         <div class="form-group">
@@ -1570,22 +1696,22 @@ function renderRegStepContent(d, age, isMinor) {
 
       <div class="grid-3" style="margin-top:10px;">
         <div class="card" style="padding:14px;">
-          <label class="form-label" for="filePersonalPhoto">Ảnh chân dung cá nhân (JPG/PNG/WEBP)</label>
-          <input id="filePersonalPhoto" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="personal_photo">
+          <label class="form-label" for="filePersonalPhoto">Ảnh chân dung cá nhân (JPG/PNG/WEBP) *</label>
+          <input id="filePersonalPhoto" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="personal_photo" required>
           <small id="status_personal_photo" style="display:block;margin-top:6px;color:var(--emerald-600);font-weight:600;">
             ${d.personal_photo_name ? `✓ Đã tải: ${esc(d.personal_photo_name)}` : 'Chọn tệp trực tiếp từ thiết bị'}
           </small>
         </div>
         <div class="card" style="padding:14px;">
-          <label class="form-label" for="fileIdFront">Ảnh mặt trước giấy tờ (JPG/PNG/PDF)</label>
-          <input id="fileIdFront" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="form-control" data-upload-purpose="id_front">
+          <label class="form-label" for="fileIdFront">Ảnh mặt trước giấy tờ (JPG/PNG/WEBP, nếu được yêu cầu)</label>
+          <input id="fileIdFront" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="id_front">
           <small id="status_id_front" style="display:block;margin-top:6px;color:var(--emerald-600);font-weight:600;">
             ${d.id_front_name ? `✓ Đã tải: ${esc(d.id_front_name)}` : 'Chọn tệp trực tiếp từ thiết bị'}
           </small>
         </div>
         <div class="card" style="padding:14px;">
-          <label class="form-label" for="fileIdBack">Ảnh mặt sau giấy tờ (JPG/PNG/PDF)</label>
-          <input id="fileIdBack" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" class="form-control" data-upload-purpose="id_back">
+          <label class="form-label" for="fileIdBack">Ảnh mặt sau giấy tờ (JPG/PNG/WEBP, nếu được yêu cầu)</label>
+          <input id="fileIdBack" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="id_back">
           <small id="status_id_back" style="display:block;margin-top:6px;color:var(--emerald-600);font-weight:600;">
             ${d.id_back_name ? `✓ Đã tải: ${esc(d.id_back_name)}` : 'Chọn tệp trực tiếp từ thiết bị'}
           </small>
@@ -1836,6 +1962,9 @@ function bindRegStepEvents(d, age, isMinor) {
     }
     if (!d.id_issued_date || !d.id_issued_place) {
       return showErr('Vui lòng nhập đầy đủ Ngày cấp và Nơi cấp giấy tờ định danh.');
+    }
+    if (!d.personal_photo_r2_key) {
+      return showErr('Bước 3 bắt buộc tải lên ảnh chân dung cá nhân trước khi tiếp tục.');
     }
     d.step = 4;
     renderRoute();
@@ -2393,8 +2522,8 @@ function renderDashboardSubTab(subVp, tab) {
     subVp.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
         <div>
-          <h2 style="color:var(--navy-900);">Quản lý Bài viết CMS (Mở khóa 100% Bài viết do AI hỗ trợ tạo)</h2>
-          <p style="font-size:13px;color:var(--ink-700);">Tạo, sửa toàn bộ trường (tiêu đề, slug, nội dung, chuyên mục, tóm tắt, thẻ, SEO), xuất bản, gỡ xuất bản và xóa.</p>
+          <h2 style="color:var(--navy-900);">${isVi ? 'Quản lý bài viết CMS' : 'CMS article management'}</h2>
+          <p style="font-size:13px;color:var(--ink-700);">${isVi ? 'Tạo, chỉnh sửa nội dung tiếng Việt/Anh, SEO, nhãn, trạng thái xuất bản và xóa bài viết. Bài viết có hỗ trợ AI vẫn cần được biên tập và duyệt trước khi công bố.' : 'Create and edit Vietnamese/English content, SEO fields, tags, publication status, and delete articles. AI-assisted drafts still require editorial review before publication.'}</p>
         </div>
         <button type="button" class="btn btn-primary" id="btnNewCmsPost">+ Tạo bài viết mới</button>
       </div>
@@ -2408,7 +2537,7 @@ function renderDashboardSubTab(subVp, tab) {
             <tr>
               <td><strong>${esc(p.title_vi)}</strong><br><code>/${esc(p.slug)}</code></td>
               <td>${esc(p.category)}</td>
-              <td>${Number(p.is_ai_generated) === 1 ? '<span class="status-pill status-amber">AI Draft (Mở khóa)</span>' : '<span class="status-pill status-blue">Biên tập viên</span>'}</td>
+              <td>${Number(p.is_ai_generated) === 1 ? `<span class="status-pill status-amber">${isVi ? 'Bản nháp có AI hỗ trợ' : 'AI-assisted draft'}</span>` : `<span class="status-pill status-blue">${isVi ? 'Biên tập viên' : 'Editor'}</span>`}</td>
               <td><span class="status-pill ${p.status === 'published' ? 'status-green' : 'status-amber'}">${esc(p.status)}</span></td>
               <td style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button type="button" class="btn btn-sm btn-secondary btn-edit-post" data-post-id="${esc(p.id)}">✏️ Sửa</button>
@@ -2460,6 +2589,8 @@ function renderDashboardSubTab(subVp, tab) {
       document.getElementById('btnCancelPostEdit')?.addEventListener('click', () => { area.innerHTML = ''; });
       document.getElementById('cmsPostForm')?.addEventListener('submit', async e => {
         e.preventDefault();
+        const submitButton = e.submitter || e.target.querySelector('button[type="submit"]');
+        if (submitButton) submitButton.disabled = true;
         try {
           await apiFetch('/api/cms/posts', {
             method: 'POST',
@@ -2483,10 +2614,11 @@ function renderDashboardSubTab(subVp, tab) {
             })
           });
           await loadInitialData();
-          showToast('Đã lưu bài viết vào cơ sở dữ liệu D1!');
+          showToast(AppState.lang === 'vi' ? 'Đã lưu bài viết vào cơ sở dữ liệu.' : 'Article saved to the database.');
           renderRoute();
         } catch (err) {
           showToast(err.message, true);
+          if (submitButton) submitButton.disabled = false;
         }
       });
     };
@@ -2503,6 +2635,7 @@ function renderDashboardSubTab(subVp, tab) {
         const post = posts.find(x => String(x.id) === btn.getAttribute('data-post-id'));
         if (!post) return;
         const nextStatus = post.status === 'published' ? 'unpublished' : 'published';
+        if (nextStatus === 'published' && !window.confirm(AppState.lang === 'vi' ? `Xác nhận biên tập và xuất bản “${post.title_vi}”?` : `Confirm editorial review and publish “${post.title_en || post.title_vi}”?`)) return;
         try {
           await apiFetch('/api/cms/posts', {
             method: 'POST',
@@ -2534,81 +2667,129 @@ function renderDashboardSubTab(subVp, tab) {
   }
 
   if (tab === 'cms_pages') {
+    const isVi = AppState.lang === 'vi';
     const pages = d.cms?.pages || [];
+    const protectedSlugs = new Set(['tong-quan','trang-chu-noi-dung','su-menh-tam-nhin','co-cau-to-chuc','linh-vuc-hoat-dong','lien-he','chinh-sach-bao-ve-du-lieu','dieu-khoan-su-dung','huong-dan-su-dung','ho-tro-nguoi-dung','an-toan-thong-tin']);
     subVp.innerHTML = `
-      <h2 style="margin-bottom:14px;color:var(--navy-900);">Quản lý Trang Giới thiệu & Chính sách (Lưu D1 + Lịch sử Phiên bản)</h2>
+      <h2 style="margin-bottom:14px;color:var(--navy-900);">${isVi ? 'Quản lý trang và chính sách' : 'Pages and policies'}</h2>
+      <p style="margin-bottom:14px;color:var(--ink-600);">${isVi ? 'Nội dung được lưu trong D1. Trang hệ thống có thể chỉnh sửa, chuyển trạng thái hoặc lưu trữ; các trang cốt lõi không thể xóa nhầm.' : 'Content is stored in D1. System pages can be edited, unpublished, or archived; protected core pages cannot be accidentally deleted.'}</p>
+      <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" id="btnNewCmsPage">${isVi ? '+ Tạo trang mới' : '+ Create page'}</button>
+      </div>
       <div id="cmsPageEditorArea" style="margin-bottom:20px;"></div>
-      <table class="data-table">
-        <thead><tr><th>Tiêu đề (VI / EN)</th><th>Slug</th><th>Phiên bản</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-        <tbody>
-          ${pages.map(pg => `
-            <tr>
-              <td><strong>${esc(pg.title_vi)}</strong><br><small>${esc(pg.title_en)}</small></td>
-              <td><code>${esc(pg.slug)}</code></td>
-              <td>v${Number(pg.version || 1)}</td>
-              <td><span class="status-pill status-green">${esc(pg.status)}</span></td>
-              <td><button type="button" class="btn btn-sm btn-secondary btn-edit-page" data-slug="${esc(pg.slug)}">✏️ Chỉnh sửa</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead><tr><th>${isVi ? 'Tiêu đề (VI / EN)' : 'Title (VI / EN)'}</th><th>Slug</th><th>${isVi ? 'Nhóm' : 'Group'}</th><th>${isVi ? 'Phiên bản' : 'Version'}</th><th>${isVi ? 'Trạng thái' : 'Status'}</th><th>${isVi ? 'Thao tác' : 'Actions'}</th></tr></thead>
+          <tbody>
+            ${pages.map(pg => `
+              <tr>
+                <td><strong>${esc(pg.title_vi)}</strong><br><small>${esc(pg.title_en)}</small></td>
+                <td><code>${esc(pg.slug)}</code></td>
+                <td>${esc(pg.page_group || 'general')}</td>
+                <td>v${Number(pg.version || 1)}</td>
+                <td><span class="status-pill ${pg.status === 'published' ? 'status-green' : 'status-blue'}">${esc(pg.status)}</span></td>
+                <td><div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button type="button" class="btn btn-sm btn-secondary btn-edit-page" data-page-id="${esc(pg.id)}">${isVi ? 'Chỉnh sửa' : 'Edit'}</button>
+                  <button type="button" class="btn btn-sm btn-secondary btn-toggle-page" data-page-id="${esc(pg.id)}">${pg.status === 'published' ? (isVi ? 'Gỡ xuất bản' : 'Unpublish') : (isVi ? 'Xuất bản' : 'Publish')}</button>
+                  ${protectedSlugs.has(pg.slug) ? '' : `<button type="button" class="btn btn-sm btn-secondary btn-delete-page" data-page-id="${esc(pg.id)}">${isVi ? 'Xóa' : 'Delete'}</button>`}
+                </div></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
     `;
 
-    subVp.querySelectorAll('.btn-edit-page').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const pg = pages.find(x => x.slug === btn.getAttribute('data-slug'));
-        if (!pg) return;
-        const area = document.getElementById('cmsPageEditorArea');
-        area.innerHTML = `
-          <div class="card" style="border:2px solid var(--blue-600);">
-            <h3>Chỉnh sửa Trang: ${esc(pg.title_vi)}</h3>
-            <form id="cmsPageForm" style="margin-top:12px;">
-              <div class="grid-3">
-                <div class="form-group"><label class="form-label">Slug *</label><input id="pgSlug" class="form-control" value="${esc(pg.slug)}" required></div>
-                <div class="form-group"><label class="form-label">Tiêu đề (VI) *</label><input id="pgTitleVi" class="form-control" value="${esc(pg.title_vi)}" required></div>
-                <div class="form-group"><label class="form-label">Tiêu đề (EN) *</label><input id="pgTitleEn" class="form-control" value="${esc(pg.title_en || '')}" required></div>
-              </div>
-              <div class="grid-2"><div class="form-group"><label class="form-label">Tóm tắt (VI)</label><textarea id="pgSummaryVi" class="form-control" rows="2">${esc(pg.summary_vi || '')}</textarea></div><div class="form-group"><label class="form-label">Summary (EN)</label><textarea id="pgSummaryEn" class="form-control" rows="2">${esc(pg.summary_en || '')}</textarea></div></div>
-              <div class="grid-2"><div class="form-group"><label class="form-label">Nội dung HTML (VI) *</label><textarea id="pgContentVi" class="form-control" rows="7" required>${esc(pg.content_vi)}</textarea></div><div class="form-group"><label class="form-label">Content HTML (EN) *</label><textarea id="pgContentEn" class="form-control" rows="7" required>${esc(pg.content_en || '')}</textarea></div></div>
-              <div class="grid-3"><div class="form-group"><label class="form-label">SEO title (VI)</label><input id="pgSeoTitleVi" class="form-control" value="${esc(pg.seo_title_vi || '')}"></div><div class="form-group"><label class="form-label">SEO title (EN)</label><input id="pgSeoTitleEn" class="form-control" value="${esc(pg.seo_title_en || '')}"></div><div class="form-group"><label class="form-label">Thứ tự</label><input id="pgSortOrder" class="form-control" type="number" value="${Number(pg.sort_order || 1)}"></div></div>
-              <div class="grid-2"><div class="form-group"><label class="form-label">SEO description (VI)</label><textarea id="pgSeoDescVi" class="form-control" rows="2">${esc(pg.seo_description_vi || '')}</textarea></div><div class="form-group"><label class="form-label">SEO description (EN)</label><textarea id="pgSeoDescEn" class="form-control" rows="2">${esc(pg.seo_description_en || '')}</textarea></div></div>
-              <div class="form-group"><label class="form-label">Trạng thái</label><select id="pgStatus" class="form-control"><option value="draft" ${pg.status==='draft'?'selected':''}>Bản nháp</option><option value="published" ${pg.status==='published'?'selected':''}>Đã xuất bản</option><option value="archived" ${pg.status==='archived'?'selected':''}>Lưu trữ</option></select></div>
-              <button type="submit" class="btn btn-primary">Lưu Trang vào D1</button>
-            </form>
+    const openPageEditor = (existing = null) => {
+      const pg = existing || { id: '', slug: '', title_vi: '', title_en: '', summary_vi: '', summary_en: '', content_vi: '', content_en: '', seo_title_vi: '', seo_title_en: '', seo_description_vi: '', seo_description_en: '', sort_order: pages.length + 1, page_group: 'about', status: 'draft', version: 0 };
+      const area = document.getElementById('cmsPageEditorArea');
+      area.innerHTML = `
+        <div class="card" style="border:2px solid var(--blue-600);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <h3>${existing ? (isVi ? `Chỉnh sửa trang: ${esc(pg.title_vi)}` : `Edit page: ${esc(pg.title_en || pg.title_vi)}`) : (isVi ? 'Tạo trang mới' : 'Create a page')}</h3>
+            <button type="button" class="btn btn-sm btn-secondary" id="btnCancelPageEdit">${isVi ? 'Đóng trình soạn thảo' : 'Close editor'}</button>
           </div>
-        `;
-        document.getElementById('cmsPageForm')?.addEventListener('submit', async e => {
-          e.preventDefault();
-          try {
-            await apiFetch('/api/cms/pages', {
-              method: 'POST',
-              body: JSON.stringify({
-                id: pg.id,
-                slug: document.getElementById('pgSlug').value.trim(),
-                title_vi: document.getElementById('pgTitleVi').value.trim(),
-                title_en: document.getElementById('pgTitleEn').value.trim(),
-                content_vi: document.getElementById('pgContentVi').value.trim(),
-                content_en: document.getElementById('pgContentEn').value.trim(),
-                summary_vi: document.getElementById('pgSummaryVi').value.trim(),
-                summary_en: document.getElementById('pgSummaryEn').value.trim(),
-                seo_title_vi: document.getElementById('pgSeoTitleVi').value.trim(),
-                seo_title_en: document.getElementById('pgSeoTitleEn').value.trim(),
-                seo_description_vi: document.getElementById('pgSeoDescVi').value.trim(),
-                seo_description_en: document.getElementById('pgSeoDescEn').value.trim(),
-                sort_order: Number(document.getElementById('pgSortOrder').value || 1),
-                page_group: pg.page_group,
-                status: document.getElementById('pgStatus').value
-              })
-            });
-            await loadInitialData();
-            showToast('Đã lưu trang vào D1 thành công!');
-            renderRoute();
-          } catch (err) {
-            showToast(err.message, true);
-          }
-        });
+          <form id="cmsPageForm" style="margin-top:12px;">
+            <div class="grid-3">
+              <div class="form-group"><label class="form-label" for="pgSlug">Slug *</label><input id="pgSlug" class="form-control" value="${esc(pg.slug)}" pattern="[a-z0-9_/-]+" required maxlength="180"></div>
+              <div class="form-group"><label class="form-label" for="pgTitleVi">${isVi ? 'Tiêu đề (VI) *' : 'Title (VI) *'}</label><input id="pgTitleVi" class="form-control" value="${esc(pg.title_vi)}" required maxlength="250"></div>
+              <div class="form-group"><label class="form-label" for="pgTitleEn">Title (EN) *</label><input id="pgTitleEn" class="form-control" value="${esc(pg.title_en || '')}" required maxlength="250"></div>
+            </div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">${isVi ? 'Tóm tắt (VI)' : 'Summary (VI)'}</label><textarea id="pgSummaryVi" class="form-control" rows="2" maxlength="3000">${esc(pg.summary_vi || '')}</textarea></div><div class="form-group"><label class="form-label">Summary (EN)</label><textarea id="pgSummaryEn" class="form-control" rows="2" maxlength="3000">${esc(pg.summary_en || '')}</textarea></div></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">${isVi ? 'Nội dung HTML (VI) *' : 'Content HTML (VI) *'}</label><textarea id="pgContentVi" class="form-control" rows="9" required>${esc(pg.content_vi || '')}</textarea></div><div class="form-group"><label class="form-label">Content HTML (EN) *</label><textarea id="pgContentEn" class="form-control" rows="9" required>${esc(pg.content_en || '')}</textarea></div></div>
+            <div class="grid-3"><div class="form-group"><label class="form-label">SEO title (VI)</label><input id="pgSeoTitleVi" class="form-control" value="${esc(pg.seo_title_vi || '')}" maxlength="250"></div><div class="form-group"><label class="form-label">SEO title (EN)</label><input id="pgSeoTitleEn" class="form-control" value="${esc(pg.seo_title_en || '')}" maxlength="250"></div><div class="form-group"><label class="form-label">${isVi ? 'Thứ tự' : 'Sort order'}</label><input id="pgSortOrder" class="form-control" type="number" min="0" max="9999" value="${Number(pg.sort_order || 1)}"></div></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">SEO description (VI)</label><textarea id="pgSeoDescVi" class="form-control" rows="2" maxlength="500">${esc(pg.seo_description_vi || '')}</textarea></div><div class="form-group"><label class="form-label">SEO description (EN)</label><textarea id="pgSeoDescEn" class="form-control" rows="2" maxlength="500">${esc(pg.seo_description_en || '')}</textarea></div></div>
+            <div class="grid-3">
+              <div class="form-group"><label class="form-label">${isVi ? 'Nhóm trang' : 'Page group'}</label><select id="pgGroup" class="form-control">${[['home','Trang chủ / Home'],['about','Giới thiệu / About'],['policy','Chính sách / Policy'],['support','Hỗ trợ / Support'],['cooperation','Hợp tác / Cooperation'],['general','Khác / General']].map(([v,l])=>`<option value="${v}" ${pg.page_group===v?'selected':''}>${l}</option>`).join('')}</select></div>
+              <div class="form-group"><label class="form-label">${isVi ? 'Trạng thái' : 'Status'}</label><select id="pgStatus" class="form-control">${[['draft','Bản nháp / Draft'],['published','Đã xuất bản / Published'],['unpublished','Đã gỡ / Unpublished'],['archived','Lưu trữ / Archived']].map(([v,l])=>`<option value="${v}" ${pg.status===v?'selected':''}>${l}</option>`).join('')}</select></div>
+              <div class="form-group" style="display:flex;align-items:end;"><button type="submit" class="btn btn-primary" style="width:100%;">${isVi ? 'Lưu trang vào D1' : 'Save page to D1'}</button></div>
+            </div>
+          </form>
+        </div>
+      `;
+      document.getElementById('btnCancelPageEdit')?.addEventListener('click', () => { area.innerHTML = ''; });
+      document.getElementById('cmsPageForm')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const saveButton = e.submitter || e.target.querySelector('button[type="submit"]');
+        if (saveButton) saveButton.disabled = true;
+        try {
+          await apiFetch('/api/cms/pages', {
+            method: 'POST',
+            body: JSON.stringify({
+              id: pg.id || undefined,
+              slug: document.getElementById('pgSlug').value.trim(),
+              title_vi: document.getElementById('pgTitleVi').value.trim(),
+              title_en: document.getElementById('pgTitleEn').value.trim(),
+              content_vi: document.getElementById('pgContentVi').value.trim(),
+              content_en: document.getElementById('pgContentEn').value.trim(),
+              summary_vi: document.getElementById('pgSummaryVi').value.trim(),
+              summary_en: document.getElementById('pgSummaryEn').value.trim(),
+              seo_title_vi: document.getElementById('pgSeoTitleVi').value.trim(),
+              seo_title_en: document.getElementById('pgSeoTitleEn').value.trim(),
+              seo_description_vi: document.getElementById('pgSeoDescVi').value.trim(),
+              seo_description_en: document.getElementById('pgSeoDescEn').value.trim(),
+              sort_order: Number(document.getElementById('pgSortOrder').value || 1),
+              page_group: document.getElementById('pgGroup').value,
+              status: document.getElementById('pgStatus').value
+            })
+          });
+          await loadInitialData();
+          showToast(isVi ? 'Đã lưu trang vào D1 thành công.' : 'Page saved to D1.');
+          renderRoute();
+        } catch (err) {
+          showToast(err.message, true);
+          if (saveButton) saveButton.disabled = false;
+        }
       });
-    });
+    };
+
+    document.getElementById('btnNewCmsPage')?.addEventListener('click', () => openPageEditor());
+    subVp.querySelectorAll('.btn-edit-page').forEach(btn => btn.addEventListener('click', () => {
+      const pg = pages.find(x => String(x.id) === btn.getAttribute('data-page-id'));
+      if (pg) openPageEditor(pg);
+    }));
+    subVp.querySelectorAll('.btn-toggle-page').forEach(btn => btn.addEventListener('click', async () => {
+      const pg = pages.find(x => String(x.id) === btn.getAttribute('data-page-id'));
+      if (!pg) return;
+      const nextStatus = pg.status === 'published' ? 'unpublished' : 'published';
+      if (nextStatus === 'published' && !window.confirm(isVi ? `Xuất bản trang “${pg.title_vi}”?` : `Publish “${pg.title_en || pg.title_vi}”?`)) return;
+      try {
+        await apiFetch('/api/cms/pages', { method: 'POST', body: JSON.stringify({ ...pg, status: nextStatus }) });
+        await loadInitialData();
+        showToast(isVi ? `Đã đổi trạng thái trang sang ${nextStatus}.` : `Page status changed to ${nextStatus}.`);
+        renderRoute();
+      } catch (err) { showToast(err.message, true); }
+    }));
+    subVp.querySelectorAll('.btn-delete-page').forEach(btn => btn.addEventListener('click', async () => {
+      const pg = pages.find(x => String(x.id) === btn.getAttribute('data-page-id'));
+      if (!pg || !window.confirm(isVi ? `Xóa vĩnh viễn trang “${pg.title_vi}”? Thao tác này không thể hoàn tác.` : `Permanently delete “${pg.title_en || pg.title_vi}”? This cannot be undone.`)) return;
+      try {
+        await apiFetch(`/api/cms/pages/${encodeURIComponent(pg.id)}`, { method: 'DELETE' });
+        await loadInitialData();
+        showToast(isVi ? 'Đã xóa trang.' : 'Page deleted.');
+        renderRoute();
+      } catch (err) { showToast(err.message, true); }
+    }));
     return;
   }
 
@@ -3151,6 +3332,19 @@ function renderDashboardSubTab(subVp, tab) {
 // ============================================================================
 function initApp() {
   document.addEventListener('click', e => {
+    const mobileToggle = e.target.closest('#mobileNavToggle');
+    if (mobileToggle) {
+      const nav = document.getElementById('publicMainNav');
+      const isOpen = nav?.classList.toggle('is-open') || false;
+      mobileToggle.setAttribute('aria-expanded', String(isOpen));
+      mobileToggle.setAttribute('aria-label', isOpen
+        ? (AppState.lang === 'vi' ? 'Đóng menu điều hướng' : 'Close navigation menu')
+        : (AppState.lang === 'vi' ? 'Mở menu điều hướng' : 'Open navigation menu'));
+      const icon = mobileToggle.querySelector('.mobile-nav-toggle-icon');
+      if (icon) icon.textContent = isOpen ? '✕' : '☰';
+      return;
+    }
+
     const navLink = e.target.closest('[data-nav]');
     if (navLink && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
       e.preventDefault();
@@ -3168,6 +3362,7 @@ function initApp() {
   });
 
   window.addEventListener('popstate', () => {
+    closeMobileNavigation();
     AppState.currentPath = window.location.pathname;
     AppState.currentQuery = new URLSearchParams(window.location.search);
     renderShell();

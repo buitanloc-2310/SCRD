@@ -66,6 +66,15 @@ try {
       registration_purpose: 'Tham gia hoạt động nghiên cứu và phát triển cộng đồng.', research_or_project_interest: 'Nghiên cứu cộng đồng',
       privacy_policy_accepted: true, terms_accepted: true, data_accuracy_confirmed: true
     };
+    const missingPhoto = await call('/api/account-requests', { method: 'POST', body });
+    assert.equal(missingPhoto.res.status, 400, 'a submitted application must include a personal portrait');
+    assert.equal((await DB.prepare('SELECT COUNT(*) n FROM account_requests').first()).n, 0, 'failed submissions must not create request records or issue codes');
+    const portraitForm = new FormData();
+    portraitForm.set('file', new File([Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,0])], 'portrait.png', { type: 'image/png' }));
+    portraitForm.set('purpose', 'personal_photo');
+    const portraitUpload = await call('/api/account-requests/upload', { method: 'POST', form: portraitForm });
+    assert.equal(portraitUpload.res.status, 201, JSON.stringify(portraitUpload.data));
+    body.personal_photo_r2_key = portraitUpload.data.r2_key;
     const { res, data } = await call('/api/account-requests', { method: 'POST', body });
     assert.equal(res.status, 201, JSON.stringify(data)); requestCode = data.request_code; assert.match(requestCode, /^SCRD-SFN-\d{10}$/);
     const row = await DB.prepare('SELECT * FROM account_requests WHERE request_code=?').bind(requestCode).first();
@@ -88,10 +97,16 @@ try {
     const postRow=await DB.prepare('SELECT * FROM cms_posts WHERE id=?').bind(post.data.id).first(); assert.ok(postRow); assert.doesNotMatch(postRow.content_vi,/script|onerror/i);
     const page = await call('/api/cms/pages', { method: 'POST', body: { slug: 'smoke-page', title_vi: 'Trang thử', title_en: 'Smoke page', content_vi: '<p>Nội dung</p>', content_en: '<p>Content</p>', page_group: 'general', status: 'published' } });
     assert.equal(page.res.status, 200, JSON.stringify(page.data)); assert.ok(await DB.prepare('SELECT id FROM cms_pages WHERE id=?').bind(page.data.id).first());
+    const upsertBySlug = await call('/api/cms/pages', { method: 'POST', body: { slug: 'smoke-page', title_vi: 'Trang thử cập nhật', title_en: 'Updated smoke page', content_vi: '<p>Cập nhật</p>', content_en: '<p>Updated</p>', page_group: 'general', status: 'draft' } });
+    assert.equal(upsertBySlug.res.status, 200, JSON.stringify(upsertBySlug.data)); assert.equal(upsertBySlug.data.id, page.data.id, 'upsert by slug must update the existing page instead of creating a duplicate');
+    const pageUpdated = await DB.prepare('SELECT title_vi,status,version FROM cms_pages WHERE slug=?').bind('smoke-page').first(); assert.equal(pageUpdated.title_vi, 'Trang thử cập nhật'); assert.equal(pageUpdated.status, 'draft'); assert.ok(pageUpdated.version >= 2);
+    const reserved = await DB.prepare("SELECT id FROM cms_pages WHERE slug='tong-quan'").first();
+    const protectDelete = await call(`/api/cms/pages/${encodeURIComponent(reserved.id)}`, { method: 'DELETE' }); assert.equal(protectDelete.res.status, 409, 'core system pages must not be accidentally deleted');
+    const deletePage = await call(`/api/cms/pages/${encodeURIComponent(page.data.id)}`, { method: 'DELETE' }); assert.equal(deletePage.res.status, 200, JSON.stringify(deletePage.data)); assert.equal(await DB.prepare('SELECT id FROM cms_pages WHERE slug=?').bind('smoke-page').first(), null);
     const menu = await call('/api/cms/menus', { method: 'POST', body: { menu_location: 'main_header', label_vi: 'Menu kiểm thử', label_en: 'Test menu', target_url: '/kiem-thu', sort_order: 99, is_visible: true } }); assert.equal(menu.res.status, 200, JSON.stringify(menu.data));
     const setting = await call('/api/cms/settings', { method: 'POST', body: { settings: { hero_title_vi: 'Tiêu đề đã cập nhật', unsafe_unapproved_key: 'ignored' } } }); assert.equal(setting.res.status, 200); assert.ok(setting.data.saved.includes('hero_title_vi')); assert.ok(!setting.data.saved.includes('unsafe_unapproved_key'));
     const redir = await call('/api/cms/redirects', { method: 'POST', body: { old_path: '/duong-cu-kiem-thu', new_path: '/gioi-thieu', status_code: 301 } }); assert.equal(redir.res.status, 200, JSON.stringify(redir.data));
-    const pageRows=await DB.prepare('SELECT COUNT(*) n FROM cms_pages WHERE slug=?').bind('smoke-page').first(); assert.equal(pageRows.n,1);
+    const pageRows=await DB.prepare('SELECT COUNT(*) n FROM cms_pages WHERE slug=?').bind('smoke-page').first(); assert.equal(pageRows.n,0, 'deleted CMS page must be removed from D1');
   });
 
   let publicMediaId = '';
