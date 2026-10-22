@@ -1,3 +1,5 @@
+> **Bản Full Repair mới nhất:** các kết quả kiểm thử cũ trong tài liệu lịch sử này được thay thế bởi `FULL_REPAIR_REPORT_VI.md`, trong đó ghi kết quả 73/73 kiểm tra nội dung/UI/nghiệp vụ đạt. Không dùng riêng báo cáo lịch sử này để nghiệm thu bản Full Repair.
+
 # Báo cáo kiểm thử SCRD + Exam — 22/10/2026
 
 ## Kết quả kiểm thử cục bộ

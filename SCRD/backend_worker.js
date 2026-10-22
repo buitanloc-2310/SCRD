@@ -27,12 +27,12 @@ const MIME_EXT = new Map([
 const DEFAULT_SETTINGS = {
   site_name_vi: SITE.vi, site_name_en: SITE.en, site_domain: SITE.domain, exam_portal_url: SITE.exam,
   support_email: SITE.email,
-  hero_eyebrow_vi: SITE.vi.toLocaleUpperCase('vi-VN'),
-  hero_eyebrow_en: SITE.en.toUpperCase(),
-  hero_title_vi: 'Hệ sinh thái Nghiên cứu Khoa học, Khảo thí Học thuật và Phát triển Cộng đồng',
-  hero_title_en: 'Ecosystem for Scientific Research, Academic Assessment and Community Development',
-  hero_subtitle_vi: 'Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First xây dựng nền tảng tri thức chuẩn mực, thúc đẩy các chương trình nghiên cứu ứng dụng, khảo thí minh bạch và dự án phục vụ cộng đồng bền vững.',
-  hero_subtitle_en: 'Sky First Center for Research and Development builds a rigorous knowledge platform, advancing applied research, transparent academic assessment, and sustainable community initiatives.',
+  hero_eyebrow_vi: 'TRUNG TÂM NGHIÊN CỨU VÀ PHÁT TRIỂN CỘNG ĐỒNG SKY FIRST',
+  hero_eyebrow_en: 'SKY FIRST CENTER FOR RESEARCH AND DEVELOPMENT',
+  hero_title_vi: 'NGHIÊN CỨU KHOA HỌC & PHÁT TRIỂN CỘNG ĐỒNG',
+  hero_title_en: 'SCIENTIFIC RESEARCH & COMMUNITY DEVELOPMENT',
+  hero_subtitle_vi: 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững. Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
+  hero_subtitle_en: 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives. The official platform of Sky First Center for Research and Development.',
   copyright_vi: '© Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
   copyright_en: '© Sky First Center for Research and Development.'
 };
@@ -126,6 +126,16 @@ async function encryptSensitive(value, secret) {
   const ciphertext=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(String(value)));
   const b64=a=>{const bytes=new Uint8Array(a);let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary);};
   return JSON.stringify({v:1,alg:'A256GCM',iv:b64(iv),data:b64(ciphertext)});
+}
+async function decryptSensitive(value, secret) {
+  if (!secret || String(secret).length < 32) throw Object.assign(new Error('ID_ENCRYPTION_KEY_NOT_CONFIGURED'), { httpStatus: 503 });
+  let envelope; try { envelope = JSON.parse(str(value)); } catch { throw Object.assign(new Error('Dữ liệu được mã hóa không hợp lệ.'), { httpStatus: 500 }); }
+  if (!envelope || envelope.v !== 1 || envelope.alg !== 'A256GCM' || !envelope.iv || !envelope.data) throw Object.assign(new Error('Định dạng dữ liệu được mã hóa không được hỗ trợ.'), { httpStatus: 500 });
+  const fromB64 = input => Uint8Array.from(atob(input), c => c.charCodeAt(0));
+  const keyBytes = await crypto.subtle.digest('SHA-256', enc.encode(String(secret)));
+  const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(envelope.iv) }, key, fromB64(envelope.data));
+  return new TextDecoder().decode(plaintext);
 }
 function requestIp(request){return request?.headers?.get('CF-Connecting-IP')||'unknown';}
 async function writeAudit(db,request,actor,action,type,id,details={}) {
@@ -292,12 +302,8 @@ async function reviewRequest(env,request,session,body) {
     await env.DB.prepare(`INSERT INTO users(id,sfn_id,email,password_hash,password_salt,full_name,role,status,phone,gender,date_of_birth,organization,department,is_minor,guardian_name,guardian_phone,guardian_email,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
       .bind(uid,sfnId,row.email,passwordHash,'',row.full_name,role,'pending',row.phone,row.gender,row.date_of_birth,row.institution_name,row.faculty_department,row.is_minor,row.guardian_full_name,row.guardian_phone,row.guardian_email).run();
     approvedUserId=uid;
-    // Create single-use activation token. Raw token is sent only to the configured mail provider, never logged.
-    const rawToken=randomToken(32),tokenHash=await hashText(rawToken);
-    await env.DB.prepare(`INSERT INTO password_reset_tokens(id,user_id,token_hash,expires_at,ip_address,created_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)`)
-      .bind(uuid(),uid,tokenHash,new Date(Date.now()+24*3600*1000).toISOString(),requestIp(request)).run();
-    const activationUrl=`${SITE.domain}/quen-mat-khau?reset_token=${encodeURIComponent(rawToken)}`;
-    await dispatchEmail(env,'account_request_approved',row.email,`Hồ sơ ${row.request_code} đã được duyệt`,{full_name:row.full_name,request_code:row.request_code,activation_url:activationUrl,expires_hours:24},row.request_code);
+    // Account approval does not issue password-reset/activation tokens: the applicant is directed to the administrator/hotline workflow.
+    await dispatchEmail(env,'account_request_approved',row.email,`Hồ sơ ${row.request_code} đã được duyệt`,{full_name:row.full_name,request_code:row.request_code,support_phone:'0924 910 210',support_email:SITE.email,next_step:'Liên hệ quản trị viên hoặc hotline để xác minh và hoàn tất thiết lập tài khoản.'},row.request_code);
   }
   if(newStatus==='Từ chối') await dispatchEmail(env,'account_request_rejected',row.email,`Cập nhật hồ sơ ${row.request_code}`,{full_name:row.full_name,request_code:row.request_code,review_message:pub},row.request_code);
   else if(!['Đã duyệt'].includes(newStatus)) await dispatchEmail(env,'account_request_status_update',row.email,`Cập nhật hồ sơ ${row.request_code}`,{full_name:row.full_name,request_code:row.request_code,request_status:newStatus,review_message:pub},row.request_code);
@@ -403,11 +409,11 @@ async function routeApi(request,env) {
   if(path==='/api/account-requests/upload'&&method==='POST'){
     if(!await rateLimit(env.DB,`anon_upload:${requestIp(request)}`,12,900))return fail('Đã vượt giới hạn tải tệp. Vui lòng thử lại sau.',429,request);
     const fd=await request.formData(),purpose=str(fd.get('purpose')||'supporting_doc');
-    if(!['personal_photo','id_front','id_back','supporting_doc'].includes(purpose))return fail('Mục đích tải tệp không hợp lệ.',400,request);
+    if(!['personal_photo','supporting_doc'].includes(purpose))return fail('Bước đăng ký chỉ nhận ảnh chân dung cá nhân và tài liệu minh chứng bổ sung; không tải ảnh giấy tờ định danh vào trường ảnh chân dung.',400,request);
     const uploaded=fd.get('file');
     if(!uploaded||typeof uploaded.arrayBuffer!=='function'||!uploaded.size)return fail('Vui lòng chọn tệp tải lên.',400,request);
     const uploadMime=str(uploaded.type).toLowerCase();
-    if(['personal_photo','id_front','id_back'].includes(purpose)&&!['image/jpeg','image/png','image/webp'].includes(uploadMime))return fail('Ảnh chân dung và ảnh giấy tờ chỉ chấp nhận JPEG, PNG hoặc WebP.',415,request);
+    if(purpose==='personal_photo'&&!['image/jpeg','image/png','image/webp'].includes(uploadMime))return fail('Ảnh chân dung cá nhân chỉ chấp nhận JPEG, PNG hoặc WebP.',415,request);
     // File is kept private and tied to a random staging key until a submitted request claims it.
     const fileData=await validateUploadFile(uploaded);
     const result=await uploadToR2(env,request,{purpose,scope:'identity_private',relatedType:'account_request_staging',relatedId:uuid(),anonymous:true,fileData});
@@ -427,16 +433,16 @@ async function routeApi(request,env) {
     const idType=str(b.id_document_type||'CCCD'),idNumber=str(b.id_number).replace(/\s/g,'');
     if(!['CCCD','Passport','StudentCard','BirthCertificate'].includes(idType)||!idNumber||idNumber.length<(idType==='CCCD'?12:6)||(idType==='CCCD'&&!/^\d{12}$/.test(idNumber))||!str(b.id_issued_date)||!str(b.id_issued_place))return fail('Bước 3: Thông tin giấy tờ định danh không hợp lệ.',400,request);
     if(!str(b.registration_purpose)||str(b.registration_purpose).length<10||!str(b.research_or_project_interest))return fail('Bước 4: Cần mục đích đăng ký và lĩnh vực quan tâm.',400,request);
-    if(!boolInt(b.privacy_policy_accepted)||!boolInt(b.terms_accepted)||!boolInt(b.data_accuracy_confirmed))return fail('Bước 5: Cần xác nhận chính sách, điều khoản và tính chính xác của dữ liệu.',400,request);
+    if(!boolInt(b.privacy_policy_accepted)||!boolInt(b.terms_accepted)||!boolInt(b.data_accuracy_confirmed))return fail('Bước 5: Cần xác nhận thông báo dữ liệu cá nhân, điều khoản và tính chính xác của dữ liệu.',400,request);
+    const signature=str(b.signature_data);if(!signature||!/^data:image\/png;base64,[A-Za-z0-9+/=]{1,350000}$/.test(signature))return fail('Bước 5: Cần ký trực tiếp hoặc tải ảnh chữ ký PNG hợp lệ trước khi gửi hồ sơ.',400,request);
     if(!env.ID_ENCRYPTION_KEY||String(env.ID_ENCRYPTION_KEY).length<32)return fail('Hệ thống chưa cấu hình khóa mã hóa dữ liệu định danh. Hồ sơ chưa được lưu; vui lòng liên hệ hỗ trợ.',503,request);
     const encNumber=await encryptSensitive(idNumber,env.ID_ENCRYPTION_KEY),idHash=await hashText(idNumber),requestCode=await uniqueRequestCode(env.DB),id=uuid();
     const requestedRole=ROLES.has(str(b.requested_role))&&!['super_admin','cms_editor','reviewer'].includes(str(b.requested_role))?str(b.requested_role):'member';
-    const keyFields=['personal_photo_r2_key','id_front_r2_key','id_back_r2_key','supporting_doc_r2_key'];
+    const keyFields=['personal_photo_r2_key','supporting_doc_r2_key'];
     if(!str(b.personal_photo_r2_key))return fail('Bước 3: Cần tải lên ảnh chân dung cá nhân trước khi gửi hồ sơ.',400,request);
-    const expectedPurpose={personal_photo_r2_key:'personal_photo',id_front_r2_key:'id_front',id_back_r2_key:'id_back',supporting_doc_r2_key:'supporting_doc'};
+    const expectedPurpose={personal_photo_r2_key:'personal_photo',supporting_doc_r2_key:'supporting_doc'};
     for(const field of keyFields){const key=str(b[field]);if(key){const f=await env.DB.prepare(`SELECT id,purpose,related_entity_type FROM r2_files WHERE r2_key=? AND related_entity_type='account_request_staging'`).bind(key).first();if(!f||f.purpose!==expectedPurpose[field]) return fail('Một tệp đính kèm không hợp lệ hoặc không đúng loại. Vui lòng tải lại tệp.',400,request);}}
-    const signature=str(b.signature_data);if(signature&&!/^data:image\/png;base64,[A-Za-z0-9+/=]{1,350000}$/.test(signature))return fail('Dữ liệu chữ ký không hợp lệ hoặc quá lớn.',400,request);
-    const encSignature=signature?await encryptSensitive(signature,env.ID_ENCRYPTION_KEY):null;
+    const encSignature=await encryptSensitive(signature,env.ID_ENCRYPTION_KEY);
     await env.DB.prepare(`INSERT INTO account_requests(id,request_code,full_name,email,phone,gender,date_of_birth,calculated_age,is_minor,guardian_full_name,guardian_relationship,guardian_phone,guardian_email,guardian_consent,personal_photo_r2_key,applicant_group,education_level,institution_name,major_or_field,current_occupation,work_unit,class_name,faculty_department,position_title,id_document_type,id_number_encrypted,id_number_hash,id_number_masked,id_issued_date,id_issued_place,id_expiry_date,id_front_r2_key,id_back_r2_key,requested_role,registration_purpose,research_or_project_interest,experience_summary,supporting_doc_r2_key,privacy_policy_accepted,terms_accepted,data_accuracy_confirmed,signature_data,status,submitted_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'Đã tiếp nhận',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
       .bind(id,requestCode,full,email,phone,gender,dob,age,minor?1:0,minor?cleanText(b.guardian_full_name,160):null,minor?cleanText(b.guardian_relationship,100):null,minor?cleanText(b.guardian_phone,32):null,minor?str(b.guardian_email).toLowerCase()||null:null,minor?1:0,str(b.personal_photo_r2_key)||null,group,cleanText(b.education_level,120),cleanText(b.institution_name,220),cleanText(b.major_or_field,220),cleanText(b.current_occupation,160),cleanText(b.work_unit,220)||null,cleanText(b.class_name,120)||null,cleanText(b.faculty_department,160)||null,cleanText(b.position_title,160)||null,idType,encNumber,idHash,maskedId(idNumber,idType),str(b.id_issued_date),cleanText(b.id_issued_place,200),str(b.id_expiry_date)||null,str(b.id_front_r2_key)||null,str(b.id_back_r2_key)||null,requestedRole,cleanText(b.registration_purpose,4000),cleanText(b.research_or_project_interest,1500),cleanText(b.experience_summary,4000)||null,str(b.supporting_doc_r2_key)||null,1,1,1,encSignature).run();
     for(const field of keyFields){const key=str(b[field]);if(key)await env.DB.prepare(`UPDATE r2_files SET related_entity_type='account_request',related_entity_id=?,purpose=?,access_scope='identity_private' WHERE r2_key=?`).bind(id,field,key).run();}
@@ -472,28 +478,10 @@ async function routeApi(request,env) {
   if(path==='/api/auth/me'&&method==='GET'){
     const session=await currentSession(request,env);if(!session)return fail('Phiên đăng nhập đã hết hạn.',401,request);return ok({user:publicUser(session),csrf_token:session.csrf_token},200,request);
   }
-  if(path==='/api/auth/forgot-password'&&method==='POST'){
-    if(!await rateLimit(env.DB,`forgot:${requestIp(request)}`,5,900))return fail('Quá nhiều yêu cầu khôi phục. Vui lòng thử lại sau.',429,request);
-    const b=await safeBody(request),email=str(b.email).toLowerCase();if(!validEmail(email))return fail('Địa chỉ email không hợp lệ.',400,request);
-    const user=await env.DB.prepare(`SELECT id,email,full_name,status FROM users WHERE email=? COLLATE NOCASE LIMIT 1`).bind(email).first();
-    if(user&&['active','pending'].includes(user.status)){
-      const token=randomToken(32),tokenHash=await hashText(token);await env.DB.prepare(`INSERT INTO password_reset_tokens(id,user_id,token_hash,expires_at,ip_address,created_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)`).bind(uuid(),user.id,tokenHash,new Date(Date.now()+30*60*1000).toISOString(),requestIp(request)).run();
-      await dispatchEmail(env,'password_reset',email,'Hướng dẫn đặt lại mật khẩu Sky First',{full_name:user.full_name,reset_url:`${SITE.domain}/quen-mat-khau?reset_token=${encodeURIComponent(token)}`,expires_minutes:30},null);
-    }
-    return ok({message:'Nếu địa chỉ email khớp với tài khoản, hướng dẫn khôi phục sẽ được gửi khi dịch vụ email được cấu hình.',email_provider_configured:Boolean(env.EMAIL_WEBHOOK_URL&&env.EMAIL_API_KEY)},200,request);
-  }
-  if(path==='/api/auth/reset-password'&&method==='POST'){
-    if(!await rateLimit(env.DB,`reset:${requestIp(request)}`,8,900))return fail('Quá nhiều lần thử. Vui lòng thử lại sau.',429,request);
-    const b=await safeBody(request),token=str(b.reset_token),password=String(b.new_password||'');if(!/^[a-f0-9]{64}$/i.test(token)||password.length<10||password.length>256)return fail('Token hoặc mật khẩu mới không hợp lệ. Mật khẩu cần tối thiểu 10 ký tự.',400,request);
-    const tokenHash=await hashText(token),row=await env.DB.prepare(`SELECT t.id,t.user_id,t.expires_at,t.used_at,u.status FROM password_reset_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=?`).bind(tokenHash).first();
-    if(!row||row.used_at||Date.parse(row.expires_at)<=Date.now())return fail('Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',400,request);
-    const hash=await hashPassword(password);
-    await env.DB.batch([
-      env.DB.prepare(`UPDATE users SET password_hash=?,password_salt='',status='active',failed_login_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(hash,row.user_id),
-      env.DB.prepare(`UPDATE password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE id=? AND used_at IS NULL`).bind(row.id),
-      env.DB.prepare(`UPDATE user_sessions SET revoked=1,revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked=0`).bind(row.user_id)
-    ]);
-    await writeAudit(env.DB,request,row.user_id,'PASSWORD_RESET_COMPLETED','users',row.user_id,{});return ok({message:'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.'},200,request);
+  // Password recovery is intentionally handled by the official administrator/hotline workflow.
+  // Keep the legacy password_reset_tokens table for non-destructive compatibility, but never issue or accept reset tokens.
+  if((path==='/api/auth/forgot-password'||path==='/api/auth/reset-password')&&['POST','GET'].includes(method)){
+    return fail('Khôi phục mật khẩu được hỗ trợ trực tiếp bởi quản trị viên. Vui lòng liên hệ quản trị viên hoặc gọi hotline 0924 910 210.',410,request);
   }
   if(path==='/api/profile'&&['PUT','PATCH'].includes(method)){
     const s=await requireSession(request,env),b=await safeBody(request),name=cleanText(b.full_name,160);if(name.length<3)return fail('Họ tên cần ít nhất 3 ký tự.',400,request);
@@ -601,6 +589,51 @@ async function routeApi(request,env) {
   const fileMatch=path.match(/^\/api\/files\/([^/]+)\/download$/);if(fileMatch&&method==='GET'){
     const id=decodeURIComponent(fileMatch[1]);const f=await env.DB.prepare('SELECT * FROM r2_files WHERE id=?').bind(id).first()||await env.DB.prepare('SELECT id,r2_key,name original_filename,mime mime_type,size size_bytes,visibility access_scope,owner_user_id,created_at FROM files WHERE id=?').bind(id).first();if(!f)return fail('Không tìm thấy tệp.',404,request);return await fileResponse(request,env,f);
   }
+  const requestDetailMatch=path.match(/^\/api\/admin\/account-requests\/([^/]+)$/);
+  if(requestDetailMatch&&method==='GET'){
+    if(!REVIEW_ROLES.has(session.role))return fail('Bạn không có quyền xem hồ sơ đăng ký.',403,request);
+    const requestId=decodeURIComponent(requestDetailMatch[1]);
+    const row=await env.DB.prepare(`SELECT id,request_code,full_name,email,phone,gender,date_of_birth,calculated_age,is_minor,guardian_full_name,guardian_relationship,applicant_group,education_level,institution_name,major_or_field,current_occupation,work_unit,class_name,faculty_department,position_title,id_document_type,id_number_masked,id_issued_date,id_issued_place,id_expiry_date,registration_purpose,research_or_project_interest,experience_summary,personal_photo_r2_key,signature_data,privacy_policy_accepted,terms_accepted,data_accuracy_confirmed,status,review_notes_public,submitted_at,reviewed_at FROM account_requests WHERE id=? LIMIT 1`).bind(requestId).first();
+    if(!row)return fail('Không tìm thấy hồ sơ yêu cầu cấp tài khoản.',404,request);
+    let portraitMediaId=null;if(row.personal_photo_r2_key){const media=await env.DB.prepare(`SELECT id FROM r2_files WHERE r2_key=? AND related_entity_type='account_request' AND related_entity_id=? AND access_scope='identity_private' LIMIT 1`).bind(row.personal_photo_r2_key,row.id).first();portraitMediaId=media?.id||null;}
+    let signatureData=null;if(row.signature_data){try{signatureData=await decryptSensitive(row.signature_data,env.ID_ENCRYPTION_KEY);}catch(e){return fail('Không thể giải mã chữ ký hồ sơ. Kiểm tra ID_ENCRYPTION_KEY và dữ liệu đã lưu.',e.httpStatus||500,request);}}
+    await writeAudit(env.DB,request,session.user_id,'ACCOUNT_REQUEST_DETAIL_VIEWED','account_requests',row.id,{request_code:row.request_code});
+    return ok({...row,portrait_media_id:portraitMediaId,signature_data:signatureData},200,request);
+  }
+  if(path==='/api/admin/users'&&method==='GET'){
+    if(session.role!=='super_admin')return fail('Chỉ super admin được quản lý người dùng.',403,request);
+    const rows=await env.DB.prepare(`SELECT id,sfn_id,email,full_name,role,status,organization,department,last_login_at,created_at,updated_at FROM users ORDER BY created_at DESC LIMIT 1000`).all();
+    return ok({users:rows.results||[]},200,request);
+  }
+  const adminUserMatch=path.match(/^\/api\/admin\/users\/([^/]+)$/);
+  if(adminUserMatch&&method==='PATCH'){
+    if(session.role!=='super_admin')return fail('Chỉ super admin được thay đổi tài khoản người dùng.',403,request);
+    const userId=decodeURIComponent(adminUserMatch[1]),b=await safeBody(request);
+    const existing=await env.DB.prepare(`SELECT id,role,status FROM users WHERE id=? LIMIT 1`).bind(userId).first();if(!existing)return fail('Không tìm thấy tài khoản người dùng.',404,request);
+    const role=str(b.role||existing.role),status=str(b.status||existing.status);
+    if(!ROLES.has(role))return fail('Vai trò được chọn không hợp lệ.',400,request);
+    if(!['active','pending','suspended','locked'].includes(status))return fail('Trạng thái người dùng không hợp lệ.',400,request);
+    if(userId===session.user_id&&(role!==existing.role||status!==existing.status))return fail('Không thể tự đổi vai trò hoặc khóa tài khoản đang dùng. Hãy dùng tài khoản super admin khác.',409,request);
+    if(existing.role==='super_admin'&&(role!=='super_admin'||status!=='active')){
+      const count=await env.DB.prepare(`SELECT COUNT(*) n FROM users WHERE role='super_admin' AND status='active'`).first();
+      if(Number(count?.n||0)<=1)return fail('Không thể hạ quyền hoặc khóa super admin cuối cùng đang hoạt động.',409,request);
+    }
+    await env.DB.prepare(`UPDATE users SET role=?,status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(role,status,userId).run();
+    if(status!=='active')await env.DB.prepare(`UPDATE user_sessions SET revoked=1,revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked=0`).bind(userId).run();
+    await writeAudit(env.DB,request,session.user_id,'ADMIN_USER_UPDATED','users',userId,{role,status});
+    return ok({id:userId,role,status},200,request);
+  }
+  const adminTempPasswordMatch=path.match(/^\/api\/admin\/users\/([^/]+)\/temporary-password$/);
+  if(adminTempPasswordMatch&&method==='POST'){
+    if(session.role!=='super_admin')return fail('Chỉ super admin được khởi tạo mật khẩu tạm thời.',403,request);
+    const userId=decodeURIComponent(adminTempPasswordMatch[1]),target=await env.DB.prepare(`SELECT id,full_name,email,status FROM users WHERE id=? LIMIT 1`).bind(userId).first();
+    if(!target)return fail('Không tìm thấy tài khoản người dùng.',404,request);
+    const temporaryPassword=randomToken(12),passwordHash=await hashPassword(temporaryPassword);
+    await env.DB.prepare(`UPDATE users SET password_hash=?,password_salt='',status='active',failed_login_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(passwordHash,userId).run();
+    await env.DB.prepare(`UPDATE user_sessions SET revoked=1,revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked=0`).bind(userId).run();
+    await writeAudit(env.DB,request,session.user_id,'ADMIN_TEMP_PASSWORD_ISSUED','users',userId,{target_email:target.email});
+    return ok({id:userId,full_name:target.full_name,email:target.email,status:'active',temporary_password:temporaryPassword,message:'Mật khẩu tạm thời chỉ hiển thị một lần. Xác minh danh tính người nhận qua kênh chính thức trước khi bàn giao.'},200,request);
+  }
   if(path==='/api/admin/account-requests/review'&&method==='POST'){
     if(!REVIEW_ROLES.has(session.role))return fail('Bạn không có quyền xét duyệt hồ sơ.',403,request);const b=await safeBody(request);const result=await reviewRequest(env,request,session,b);return ok(result,200,request);
   }
@@ -624,20 +657,95 @@ async function routeApi(request,env) {
     const table=type==='research'?'research_studies':'community_projects',total=await env.DB.prepare('SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=?').bind(type,parent).first(),done=await env.DB.prepare("SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=? AND status='completed'").bind(type,parent).first();const progress=Number(total?.total)>0?Math.round(Number(done?.total||0)/Number(total.total)*100):0;await env.DB.prepare(`UPDATE ${table} SET progress_percent=?,updated_at=CURRENT_TIMESTAMP WHERE id=? OR code=?`).bind(progress,parent,parent).run();
     await env.DB.prepare(`INSERT INTO task_comments_history(id,task_id,user_id,action_type,content,created_at) VALUES(?,?,?,'status_change',?,CURRENT_TIMESTAMP)`).bind(uuid(),id,session.user_id,JSON.stringify({status,weight:b.weight})).run();await writeAudit(env.DB,request,session.user_id,'TASK_UPSERT','work_tasks',id,{parent_type:type,parent_id:parent,status});return ok({id,parent_progress_percent:progress},200,request);
   }
-  // Chat is membership-scoped; knowing a room ID alone never grants access.
+  // Private chat: every listing/read/write is scoped to current membership. Room IDs alone grant no access.
+  if(path==='/api/chat/contacts'&&method==='GET'){
+    const q=cleanText(new URL(request.url).searchParams.get('q'),100);
+    if(q.length<2)return ok({contacts:[]},200,request);
+    const escapedQ=q.replace(/[\\%_]/g, ch => `\\${ch}`);const like=`%${escapedQ}%`;
+    const rows=await env.DB.prepare(`SELECT id,full_name,sfn_id,role,department FROM users WHERE status='active' AND id<>? AND (full_name LIKE ? ESCAPE '\\' OR sfn_id LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\') ORDER BY full_name COLLATE NOCASE LIMIT 30`).bind(session.user_id,like,like,like).all();
+    return ok({contacts:(rows.results||[]).map(u=>({id:u.id,full_name:u.full_name,sfn_id:u.sfn_id,role:u.role,department:u.department}))},200,request);
+  }
   if(path==='/api/chat/rooms'&&method==='GET'){
-    const rooms=await env.DB.prepare(`SELECT r.id,r.room_type,r.name,r.created_by,r.is_private,r.created_at FROM chat_rooms r JOIN chat_room_members m ON m.room_id=r.id WHERE m.user_id=? ORDER BY r.created_at DESC`).bind(session.user_id).all();return ok({rooms:rooms.results||[]},200,request);
+    const rooms=await env.DB.prepare(`SELECT r.id,r.room_type,CASE WHEN r.room_type='direct' THEN COALESCE((SELECT u.full_name FROM chat_room_members other JOIN users u ON u.id=other.user_id WHERE other.room_id=r.id AND other.user_id<>? LIMIT 1),r.name) ELSE r.name END AS name,r.created_by,r.is_private,r.created_at,(SELECT COUNT(*) FROM chat_room_members cm WHERE cm.room_id=r.id) member_count,(SELECT COUNT(*) FROM chat_messages msg WHERE msg.room_id=r.id) message_count FROM chat_rooms r JOIN chat_room_members m ON m.room_id=r.id WHERE m.user_id=? ORDER BY COALESCE((SELECT MAX(created_at) FROM chat_messages WHERE room_id=r.id),r.created_at) DESC LIMIT 200`).bind(session.user_id,session.user_id).all();
+    return ok({rooms:rooms.results||[]},200,request);
   }
   if(path==='/api/chat/rooms'&&method==='POST'){
-    const b=await safeBody(request),name=cleanText(b.name,160);if(name.length<2)return fail('Tên phòng hội thoại cần ít nhất 2 ký tự.',400,request);const id=uuid();await env.DB.batch([
-      env.DB.prepare(`INSERT INTO chat_rooms(id,room_type,name,created_by,is_private,created_at) VALUES(?,? ,?,?,1,CURRENT_TIMESTAMP)`).bind(id,b.room_type==='direct'?'direct':'group',name,session.user_id),
-      env.DB.prepare(`INSERT INTO chat_room_members(room_id,user_id,role,is_muted,joined_at) VALUES(?,?,'owner',0,CURRENT_TIMESTAMP)`).bind(id,session.user_id)
-    ]);await writeAudit(env.DB,request,session.user_id,'CHAT_ROOM_CREATED','chat_rooms',id,{});return ok({id,name},201,request);
+    const b=await safeBody(request),roomType=b.room_type==='direct'?'direct':'group',id=uuid();
+    if(roomType==='direct'){
+      const targetId=str(b.target_user_id);if(!targetId||targetId===session.user_id)return fail('Vui lòng chọn một người dùng khác để trò chuyện riêng.',400,request);
+      const target=await env.DB.prepare(`SELECT id,full_name,status FROM users WHERE id=? LIMIT 1`).bind(targetId).first();
+      if(!target||target.status!=='active')return fail('Không tìm thấy tài khoản đang hoạt động để trò chuyện.',404,request);
+      const existing=await env.DB.prepare(`SELECT r.id,r.name FROM chat_rooms r JOIN chat_room_members a ON a.room_id=r.id AND a.user_id=? JOIN chat_room_members b ON b.room_id=r.id AND b.user_id=? WHERE r.room_type='direct' AND r.is_private=1 AND (SELECT COUNT(*) FROM chat_room_members m WHERE m.room_id=r.id)=2 ORDER BY r.created_at DESC LIMIT 1`).bind(session.user_id,targetId).first();
+      if(existing)return ok({id:existing.id,name:existing.name,reused:true},200,request);
+      const name=cleanText(target.full_name,160)||'Trò chuyện riêng';
+      await env.DB.batch([
+        env.DB.prepare(`INSERT INTO chat_rooms(id,room_type,name,created_by,is_private,created_at) VALUES(?,'direct',?,?,1,CURRENT_TIMESTAMP)`).bind(id,name,session.user_id),
+        env.DB.prepare(`INSERT INTO chat_room_members(room_id,user_id,role,is_muted,joined_at) VALUES(?,?,'owner',0,CURRENT_TIMESTAMP)`).bind(id,session.user_id),
+        env.DB.prepare(`INSERT INTO chat_room_members(room_id,user_id,role,is_muted,joined_at) VALUES(?,?,'member',0,CURRENT_TIMESTAMP)`).bind(id,targetId)
+      ]);
+      await writeAudit(env.DB,request,session.user_id,'CHAT_DIRECT_CREATED','chat_rooms',id,{target_user_id:targetId});
+      return ok({id,name,target_user_id:targetId},201,request);
+    }
+    const name=cleanText(b.name,160);if(name.length<2)return fail('Tên nhóm chat cần ít nhất 2 ký tự.',400,request);
+    const rawTargetIds=Array.isArray(b.member_user_ids)?[...new Set(b.member_user_ids.map(x=>str(x)).filter(x=>x&&x!==session.user_id))]:[];
+    if(rawTargetIds.length>49)return fail('Nhóm chat tối đa 50 thành viên, gồm cả người tạo.',400,request);
+    const targetIds=rawTargetIds;
+    if(targetIds.length){
+      const placeholders=targetIds.map(()=>'?').join(',');
+      const valid=await env.DB.prepare(`SELECT id FROM users WHERE status='active' AND id IN (${placeholders})`).bind(...targetIds).all();
+      const validIds=(valid.results||[]).map(x=>x.id);
+      if(validIds.length!==targetIds.length)return fail('Một hoặc nhiều thành viên không tồn tại hoặc không hoạt động.',400,request);
+      const statements=[env.DB.prepare(`INSERT INTO chat_rooms(id,room_type,name,created_by,is_private,created_at) VALUES(?,'group',?,?,1,CURRENT_TIMESTAMP)`).bind(id,name,session.user_id),env.DB.prepare(`INSERT INTO chat_room_members(room_id,user_id,role,is_muted,joined_at) VALUES(?,?,'owner',0,CURRENT_TIMESTAMP)`).bind(id,session.user_id)];
+      for(const memberId of validIds)statements.push(env.DB.prepare(`INSERT INTO chat_room_members(room_id,user_id,role,is_muted,joined_at) VALUES(?,?,'member',0,CURRENT_TIMESTAMP)`).bind(id,memberId));
+      await env.DB.batch(statements);
+    }else{
+      await env.DB.batch([
+        env.DB.prepare(`INSERT INTO chat_rooms(id,room_type,name,created_by,is_private,created_at) VALUES(?,'group',?,?,1,CURRENT_TIMESTAMP)`).bind(id,name,session.user_id),
+        env.DB.prepare(`INSERT INTO chat_room_members(room_id,user_id,role,is_muted,joined_at) VALUES(?,?,'owner',0,CURRENT_TIMESTAMP)`).bind(id,session.user_id)
+      ]);
+    }
+    await writeAudit(env.DB,request,session.user_id,'CHAT_GROUP_CREATED','chat_rooms',id,{member_count:targetIds.length+1});
+    return ok({id,name,member_count:targetIds.length+1},201,request);
+  }
+  const chatMembers=path.match(/^\/api\/chat\/rooms\/([^/]+)\/members$/);
+  if(chatMembers&&method==='GET'){
+    const roomId=decodeURIComponent(chatMembers[1]);
+    const room=await env.DB.prepare(`SELECT room_type FROM chat_rooms WHERE id=? AND is_private=1`).bind(roomId).first();
+    const actor=await env.DB.prepare(`SELECT 1 AS member FROM chat_room_members WHERE room_id=? AND user_id=?`).bind(roomId,session.user_id).first();
+    if(!room||room.room_type!=='group')return fail('Không tìm thấy nhóm chat.',404,request);
+    if(!actor)return fail('Bạn không phải thành viên của nhóm này.',403,request);
+    const rows=await env.DB.prepare(`SELECT m.user_id,m.role,m.joined_at,u.full_name,u.sfn_id,u.avatar_url FROM chat_room_members m JOIN users u ON u.id=m.user_id WHERE m.room_id=? ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END,u.full_name COLLATE NOCASE`).bind(roomId).all();
+    return ok({members:rows.results||[]},200,request);
+  }
+  if(chatMembers&&method==='POST'){
+    const roomId=decodeURIComponent(chatMembers[1]),b=await safeBody(request),userId=str(b.user_id);
+    const actor=await env.DB.prepare(`SELECT role FROM chat_room_members WHERE room_id=? AND user_id=?`).bind(roomId,session.user_id).first();
+    const room=await env.DB.prepare(`SELECT room_type FROM chat_rooms WHERE id=? AND is_private=1`).bind(roomId).first();
+    if(!actor||!['owner','moderator'].includes(actor.role)||!room||room.room_type!=='group')return fail('Chỉ chủ nhóm hoặc điều phối viên nhóm được thêm thành viên.',403,request);
+    if(!userId)return fail('Cần chọn tài khoản cần thêm.',400,request);
+    const user=await env.DB.prepare(`SELECT id FROM users WHERE id=? AND status='active'`).bind(userId).first();if(!user)return fail('Không tìm thấy tài khoản đang hoạt động.',404,request);
+    const count=await env.DB.prepare(`SELECT COUNT(*) n FROM chat_room_members WHERE room_id=?`).bind(roomId).first();if(Number(count?.n||0)>=50)return fail('Nhóm đã đạt giới hạn 50 thành viên.',409,request);
+    await env.DB.prepare(`INSERT OR IGNORE INTO chat_room_members(room_id,user_id,role,is_muted,joined_at) VALUES(?,?,'member',0,CURRENT_TIMESTAMP)`).bind(roomId,userId).run();
+    await writeAudit(env.DB,request,session.user_id,'CHAT_MEMBER_ADDED','chat_room_members',roomId,{added_user_id:userId});return ok({room_id:roomId,user_id:userId},200,request);
+  }
+  const chatMemberDelete=path.match(/^\/api\/chat\/rooms\/([^/]+)\/members\/([^/]+)$/);
+  if(chatMemberDelete&&method==='DELETE'){
+    const roomId=decodeURIComponent(chatMemberDelete[1]),targetId=decodeURIComponent(chatMemberDelete[2]);
+    const room=await env.DB.prepare(`SELECT room_type FROM chat_rooms WHERE id=? AND is_private=1`).bind(roomId).first();
+    const actor=await env.DB.prepare(`SELECT role FROM chat_room_members WHERE room_id=? AND user_id=?`).bind(roomId,session.user_id).first();
+    const target=await env.DB.prepare(`SELECT role FROM chat_room_members WHERE room_id=? AND user_id=?`).bind(roomId,targetId).first();
+    if(!room||room.room_type!=='group')return fail('Chức năng thành viên này chỉ áp dụng cho nhóm chat.',404,request);
+    if(!actor||!target)return fail('Không tìm thấy thành viên trong nhóm.',404,request);
+    if(!(actor.role==='owner'||(targetId===session.user_id&&target.role!=='owner')))return fail('Chỉ chủ nhóm được xóa thành viên; thành viên có thể tự rời nhóm nếu không phải chủ nhóm.',403,request);
+    if(target.role==='owner')return fail('Không thể xóa chủ nhóm hiện tại.',409,request);
+    await env.DB.prepare(`DELETE FROM chat_room_members WHERE room_id=? AND user_id=?`).bind(roomId,targetId).run();
+    await writeAudit(env.DB,request,session.user_id,'CHAT_MEMBER_REMOVED','chat_room_members',roomId,{removed_user_id:targetId});return ok({room_id:roomId,removed_user_id:targetId},200,request);
   }
   const chatMessages=path.match(/^\/api\/chat\/rooms\/([^/]+)\/messages$/);
   if(chatMessages&&(method==='GET'||method==='POST')){
     const roomId=decodeURIComponent(chatMessages[1]);const member=await env.DB.prepare('SELECT room_id FROM chat_room_members WHERE room_id=? AND user_id=?').bind(roomId,session.user_id).first();if(!member)return fail('Bạn không phải thành viên của phòng này.',403,request);
     if(method==='GET'){const rows=await env.DB.prepare(`SELECT m.id,m.room_id,m.message_text,m.attachment_r2_file_id,m.is_deleted,m.created_at,u.full_name sender_name FROM chat_messages m JOIN users u ON u.id=m.sender_user_id WHERE m.room_id=? ORDER BY m.created_at DESC LIMIT 200`).bind(roomId).all();return ok({messages:(rows.results||[]).reverse().map(m=>({...m,message_text:m.is_deleted?'Tin nhắn đã được thu hồi.':m.message_text}))},200,request);}
+    if(!await rateLimit(env.DB,`chat:${session.user_id}:${roomId}`,60,60))return fail('Bạn đang gửi tin nhắn quá nhanh. Vui lòng chờ một chút.',429,request);
     const b=await safeBody(request),message=cleanText(b.message_text,5000);if(!message)return fail('Tin nhắn không được để trống.',400,request);const id=uuid();await env.DB.prepare(`INSERT INTO chat_messages(id,room_id,sender_user_id,message_text,is_deleted,created_at) VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)`).bind(id,roomId,session.user_id,message).run();return ok({id},201,request);
   }
   // Exam control endpoints. Exam delivery/save/submit is performed by the dedicated Exam Worker.

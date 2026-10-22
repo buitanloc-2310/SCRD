@@ -61,6 +61,61 @@ const tests = [
     assert.match(examCss, /@media\(max-width:500px\)/);
     assert.match(examCss, /prefers-reduced-motion/);
     assert.match(examCss, /focus-visible/);
+  }],
+  ['public header removes technical utility bar and account/CMS CTA buttons', () => {
+    assert.doesNotMatch(html, /class=\"utility-bar\"/);
+    assert.doesNotMatch(html, /headerRegisterBtn|headerPortalBtn/);
+    assert.doesNotMatch(app, /utilityBar\.innerHTML|headerRegisterBtn|headerPortalBtn/);
+  }],
+  ['approved hero title and official Vietnamese/English summaries are in frontend defaults', () => {
+    assert.match(app, /NGHIÊN CỨU KHOA HỌC & PHÁT TRIỂN CỘNG ĐỒNG/);
+    assert.match(app, /Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững/);
+    assert.match(app, /SCIENTIFIC RESEARCH & COMMUNITY DEVELOPMENT/);
+    assert.match(app, /Connecting academic knowledge, standardized assessment/);
+  }],
+  ['registration requires a portrait, visible terms, direct/upload signature and all three confirmations', () => {
+    assert.match(app, /Ảnh chân dung cá nhân/);
+    assert.doesNotMatch(app, /fileIdFront|fileIdBack/);
+    assert.match(app, /Điều khoản đăng ký và sử dụng tài khoản Sky First/);
+    assert.match(app, /signatureCanvas/);
+    assert.match(app, /fileSignatureImage/);
+    assert.match(app, /Vui lòng ký trực tiếp hoặc tải ảnh chữ ký cá nhân trước khi gửi hồ sơ/);
+  }],
+  ['registration steps and step-five terms/signature have English translations', () => {
+    assert.match(app, /localizeRegistrationMarkup/);
+    assert.match(app, /Step 1 — Personal information/);
+    assert.match(app, /Sky First account registration and use terms/);
+    assert.match(app, /I have read, understood and agree to comply with/);
+    assert.match(app, /Applicant signature/);
+    assert.match(app, /Your account application has been received/);
+  }],
+  ['forgot password directs to the published hotline instead of token reset flow', () => {
+    assert.match(app, /0924 910 210/);
+    assert.doesNotMatch(app, /apiFetch\('\/api\/auth\/forgot-password'/);
+    assert.doesNotMatch(app, /reset_token=/);
+  }],
+  ['private chat supports contact search, direct rooms, group members and membership-scoped messages', () => {
+    assert.match(app, /api\/chat\/contacts\?q=/);
+    assert.match(app, /room_type: 'direct'/);
+    assert.match(app, /room_type: 'group'/);
+    assert.match(app, /btnAddMembersToRoom/);
+    assert.match(app, /data-remove-chat-member/);
+  }],
+  ['protected admin pages include request detail review and user/role management', () => {
+    assert.match(app, /Xem hồ sơ, ảnh chân dung & chữ ký/);
+    assert.match(app, /data-dash-tab=\"users\"/);
+    assert.match(app, /temporary-password/);
+    assert.match(css, /body\.admin-route \.main-nav-wrap/);
+  }],
+  ['Exam assets use a release-specific cache-busting version and approved SCRD origin', () => {
+    const examHtml = read('EXAM/public/index.html');
+    const examHeaders = read('EXAM/public/_headers');
+    const health = read('EXAM/functions/health.js');
+    assert.match(examHtml, /20261022-full-repair-r1/);
+    assert.match(examHeaders, /https:\/\/scrd\.skyfirst\.io\.vn/);
+    assert.doesNotMatch(examHeaders, /slc\.skyfirst\.io\.vn/);
+    assert.match(health, /https:\/\/scrd\.skyfirst\.io\.vn\/api\/health/);
+    assert.doesNotMatch(health, /slc\.skyfirst\.io\.vn/);
   }]
 ];
 

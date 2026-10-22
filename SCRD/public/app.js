@@ -63,10 +63,10 @@ export const AppState = {
     support_email: 'support@skyfirst.io.vn',
     hero_eyebrow_vi: 'TRUNG TÂM NGHIÊN CỨU VÀ PHÁT TRIỂN CỘNG ĐỒNG SKY FIRST',
     hero_eyebrow_en: 'SKY FIRST CENTER FOR RESEARCH AND DEVELOPMENT',
-    hero_title_vi: 'Hệ sinh thái Nghiên cứu Khoa học, Khảo thí Học thuật và Phát triển Cộng đồng',
-    hero_title_en: 'Ecosystem for Scientific Research, Academic Assessment and Community Development',
-    hero_subtitle_vi: 'Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First xây dựng nền tảng tri thức chuẩn mực, thúc đẩy các chương trình nghiên cứu ứng dụng, khảo thí minh bạch và dự án phục vụ cộng đồng bền vững.',
-    hero_subtitle_en: 'Sky First Center for Research and Development builds a rigorous knowledge platform, advancing applied research programs, transparent academic assessment, and sustainable community initiatives.',
+    hero_title_vi: 'NGHIÊN CỨU KHOA HỌC & PHÁT TRIỂN CỘNG ĐỒNG',
+    hero_title_en: 'SCIENTIFIC RESEARCH & COMMUNITY DEVELOPMENT',
+    hero_subtitle_vi: 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững. Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
+    hero_subtitle_en: 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives. The official platform of Sky First Center for Research and Development.',
     copyright_vi: '© Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
     copyright_en: '© Sky First Center for Research and Development.'
   },
@@ -127,6 +127,7 @@ export const AppState = {
     terms_accepted: false,
     data_accuracy_confirmed: false,
     signature_data: '',
+    signature_method: '',
     submittedResult: null
   }
 };
@@ -256,6 +257,21 @@ export async function loadInitialData() {
     ]);
     if (pubData.settings && Object.keys(pubData.settings).length > 0) {
       AppState.settings = { ...AppState.settings, ...pubData.settings };
+    }
+    // Migrate only known legacy defaults in memory; preserve any deliberate CMS-authored values.
+    if (!AppState.settings.hero_title_vi || AppState.settings.hero_title_vi === 'Hệ sinh thái Nghiên cứu Khoa học, Khảo thí Học thuật và Phát triển Cộng đồng') {
+      AppState.settings.hero_title_vi = 'NGHIÊN CỨU KHOA HỌC & PHÁT TRIỂN CỘNG ĐỒNG';
+    }
+    if (!AppState.settings.hero_title_en || AppState.settings.hero_title_en === 'Ecosystem for Scientific Research, Academic Assessment and Community Development') {
+      AppState.settings.hero_title_en = 'SCIENTIFIC RESEARCH & COMMUNITY DEVELOPMENT';
+    }
+    // Keep the eyebrow as the Center identity; the approved scientific/community headline belongs in hero_title_vi.
+    // Keep the English eyebrow as the Center identity; the approved headline belongs in hero_title_en.
+    if (AppState.settings.hero_subtitle_vi === 'Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First xây dựng nền tảng tri thức chuẩn mực, thúc đẩy các chương trình nghiên cứu ứng dụng, khảo thí minh bạch và dự án phục vụ cộng đồng bền vững.') {
+      AppState.settings.hero_subtitle_vi = 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững. Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.';
+    }
+    if (AppState.settings.hero_subtitle_en === 'Sky First Center for Research and Development builds a rigorous knowledge platform, advancing applied research, transparent academic assessment, and sustainable community initiatives.') {
+      AppState.settings.hero_subtitle_en = 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives. The official platform of Sky First Center for Research and Development.';
     }
     AppState.menus = pubData.menus || [];
     AppState.redirects = pubData.redirects || [];
@@ -417,46 +433,6 @@ function renderShell() {
   document.getElementById('btnLangEn')?.classList.toggle('active', !isVi);
   document.getElementById('mobileNavToggle')?.setAttribute('aria-label', isVi ? 'Mở menu điều hướng' : 'Open navigation menu');
 
-  const supportEl = document.getElementById('utilSupportLabel');
-  if (supportEl) {
-    supportEl.innerHTML = `${esc(t.support_label)} <a href="mailto:${esc(s.support_email)}" style="color:#67e8f9;font-weight:700;">${esc(s.support_email)}</a>`;
-  }
-
-  const utilNav = document.getElementById('utilityNavLinks');
-  if (utilNav) {
-    if (AppState.currentUser) {
-      utilNav.innerHTML = `
-        <a class="utility-link" href="/tra-cuu" data-nav="/tra-cuu">${esc(t.util_track)}</a>
-        <a class="utility-link" href="/bang-dieu-khien" data-nav="/bang-dieu-khien">👤 ${esc(AppState.currentUser.full_name)} (${esc(AppState.currentUser.role)})</a>
-        <button type="button" class="utility-link" id="btnUtilityLogout">${esc(t.util_logout)}</button>
-      `;
-      document.getElementById('btnUtilityLogout')?.addEventListener('click', handleLogout);
-    } else {
-      utilNav.innerHTML = `
-        <a class="utility-link" href="/tra-cuu" data-nav="/tra-cuu">${esc(t.util_track)}</a>
-        <a class="utility-link" href="/dang-ky" data-nav="/dang-ky">${esc(t.util_register)}</a>
-        <a class="utility-link" href="/quen-mat-khau" data-nav="/quen-mat-khau">${esc(t.util_forgot)}</a>
-        <a class="utility-link" href="/dang-nhap" data-nav="/dang-nhap">${esc(t.util_login)}</a>
-      `;
-    }
-  }
-
-  const headerRegBtn = document.getElementById('headerRegisterBtn');
-  if (headerRegBtn) headerRegBtn.textContent = t.util_register;
-
-  const headerPortalBtn = document.getElementById('headerPortalBtn');
-  if (headerPortalBtn) {
-    if (AppState.currentUser) {
-      headerPortalBtn.textContent = t.util_dashboard;
-      headerPortalBtn.setAttribute('href', '/bang-dieu-khien');
-      headerPortalBtn.setAttribute('data-nav', '/bang-dieu-khien');
-    } else {
-      headerPortalBtn.textContent = t.util_login;
-      headerPortalBtn.setAttribute('href', '/dang-nhap');
-      headerPortalBtn.setAttribute('data-nav', '/dang-nhap');
-    }
-  }
-
   document.getElementById('headerTitleVi').textContent = s.site_name_vi;
   document.getElementById('headerTitleEn').textContent = s.site_name_en;
   document.getElementById('footerNameVi').textContent = s.site_name_vi;
@@ -536,6 +512,8 @@ export async function renderRoute() {
   const isVi = AppState.lang === 'vi';
   const t = I18N[AppState.lang];
   const path = AppState.currentPath;
+  document.body.classList.toggle('admin-route', ['/bang-dieu-khien', '/quan-tri', '/admin', '/admin/settings'].includes(path));
+  document.body.classList.toggle('login-route', path === '/dang-nhap');
   document.documentElement.lang = isVi ? 'vi' : 'en';
   updateDocumentMetadata(path, isVi);
 
@@ -637,11 +615,11 @@ function renderHomeView(vp, isVi, t) {
             <a class="btn btn-primary hero-btn-primary" href="/gioi-thieu" data-nav="/gioi-thieu">
               ${esc(isVi ? (s.hero_cta_primary_vi || 'Giới thiệu Trung tâm') : (s.hero_cta_primary_en || 'About the Center'))}
             </a>
-            <a class="btn btn-secondary hero-btn-ghost" href="/dang-ky" data-nav="/dang-ky">
-              ${esc(isVi ? (s.hero_cta_secondary_vi || 'Yêu cầu cấp tài khoản') : (s.hero_cta_secondary_en || 'Request Account'))}
+            <a class="btn btn-secondary hero-btn-ghost" href="/nghien-cuu-khoa-hoc" data-nav="/nghien-cuu-khoa-hoc">
+              ${esc(isVi ? 'Khám phá nghiên cứu' : 'Explore Research')}
             </a>
-            <a class="btn btn-secondary hero-btn-ghost" href="/tra-cuu" data-nav="/tra-cuu">
-              ${esc(isVi ? 'Tra cứu yêu cầu' : 'Track Request')}
+            <a class="btn btn-secondary hero-btn-ghost" href="/hop-tac-doi-tac" data-nav="/hop-tac-doi-tac">
+              ${esc(isVi ? 'Hợp tác cùng Trung tâm' : 'Work with the Center')}
             </a>
           </div>
         </div>
@@ -1449,24 +1427,24 @@ function renderRegister5StepsView(vp, isVi) {
     vp.innerHTML = `
       <div class="container" style="max-width:780px;">
         <div class="doc-panel" style="text-align:center;border:2px solid var(--emerald-600);">
-          <span class="eyebrow">ĐÃ GHI NHẬN HỒ SƠ VÀO CƠ SỞ DỮ LIỆU D1</span>
-          <h1 class="section-title" style="margin-bottom:10px;">Hệ thống đã tiếp nhận yêu cầu cấp tài khoản</h1>
+          <span class="eyebrow">${isVi ? 'ĐÃ GHI NHẬN HỒ SƠ' : 'APPLICATION RECEIVED'}</span>
+          <h1 class="section-title" style="margin-bottom:10px;">${isVi ? 'Hệ thống đã tiếp nhận yêu cầu cấp tài khoản' : 'Your account application has been received'}</h1>
           <p style="font-size:14.5px;color:var(--ink-700);">
-            Lưu ý: Đây là xác nhận tiếp nhận hồ sơ để thẩm định, <strong>chưa phải quyết định phê duyệt hoặc kích hoạt tài khoản</strong>.
+            ${isVi ? 'Lưu ý: Đây là xác nhận tiếp nhận hồ sơ để thẩm định, <strong>chưa phải quyết định phê duyệt hoặc kích hoạt tài khoản</strong>.' : 'This confirms receipt for review; <strong>it is not an approval or account activation decision</strong>.'}
           </p>
           <div style="margin:20px auto;padding:18px;background:var(--bg-100);border-radius:12px;max-width:460px;">
-            <div style="font-size:12.5px;color:var(--ink-500);font-weight:700;">MÃ YÊU CẦU TRA CỨU CỦA BẠN</div>
+            <div style="font-size:12.5px;color:var(--ink-500);font-weight:700;">${isVi ? 'MÃ YÊU CẦU TRA CỨU CỦA BẠN' : 'YOUR REQUEST TRACKING CODE'}</div>
             <div style="font-size:26px;font-weight:800;color:var(--navy-800);letter-spacing:1px;margin:6px 0;" id="issuedRequestCode">${esc(res.request_code)}</div>
-            <div style="font-size:12.5px;">Trạng thái hiện tại: <span class="status-pill status-blue">${esc(res.status)}</span></div>
+            <div style="font-size:12.5px;">${isVi ? 'Trạng thái hiện tại:' : 'Current status:'} <span class="status-pill status-blue">${esc(res.status)}</span></div>
           </div>
           <p style="font-size:13px;color:var(--ink-500);margin-bottom:20px;">
-            Vì lý do bảo mật dữ liệu cá nhân, số giấy tờ định danh (CCCD/Hộ chiếu) và hình ảnh giấy tờ được mã hóa lưu trữ riêng tư và tuyệt đối không gửi kèm trong email xác nhận.
+            ${isVi ? 'Vì lý do bảo mật, số giấy tờ định danh được mã hóa; ảnh chân dung và chữ ký được lưu trữ riêng tư theo quyền truy cập. Các dữ liệu nhạy cảm không được gửi kèm email xác nhận.' : 'For privacy, identity numbers are encrypted and portraits/signatures are stored privately with access controls. Sensitive data is not included in confirmation emails.'}
           </p>
           <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
             <a class="btn btn-primary" href="/tra-cuu?code=${encodeURIComponent(res.request_code)}" data-nav="/tra-cuu?code=${encodeURIComponent(res.request_code)}">
-              🔍 Tra cứu tiến độ hồ sơ
+              🔍 ${isVi ? 'Tra cứu tiến độ hồ sơ' : 'Track application'}
             </a>
-            <button type="button" class="btn btn-secondary" id="btnNewRegForm">Gửi hồ sơ khác</button>
+            <button type="button" class="btn btn-secondary" id="btnNewRegForm">${isVi ? 'Gửi hồ sơ khác' : 'Submit another application'}</button>
           </div>
         </div>
       </div>
@@ -1481,25 +1459,31 @@ function renderRegister5StepsView(vp, isVi) {
 
   const age = calculateAgeFromDob(d.date_of_birth);
   const isMinor = age !== null && age >= 0 && age < 18;
-  const stepLabels = [
+  const stepLabels = isVi ? [
     'Bước 1: Thông tin cá nhân',
     'Bước 2: Học tập & Công tác',
     'Bước 3: Thông tin định danh',
     'Bước 4: Mục đích & Bổ sung',
     'Bước 5: Xác nhận & Ký gửi'
+  ] : [
+    'Step 1: Personal information',
+    'Step 2: Education & employment',
+    'Step 3: Identity information',
+    'Step 4: Purpose & additional details',
+    'Step 5: Review & signature'
   ];
 
   vp.innerHTML = `
     <div class="container" style="max-width:920px;">
       <div class="section-head">
         <div>
-          <span class="eyebrow">QUY TRÌNH XÉT DUYỆT 5 BƯỚC CHUẨN HÓA</span>
-          <h1 class="section-title">Yêu cầu Cấp Tài khoản Trung tâm Sky First</h1>
-          <p class="section-desc">Vui lòng điền chính xác thông tin ở cả 5 bước. Bạn có thể quay lại các bước trước để chỉnh sửa mà không bị mất dữ liệu đã nhập.</p>
+          <span class="eyebrow">${isVi ? 'QUY TRÌNH XÉT DUYỆT 5 BƯỚC CHUẨN HÓA' : 'STANDARDIZED FIVE-STEP APPLICATION'}</span>
+          <h1 class="section-title">${isVi ? 'Yêu cầu Cấp Tài khoản Trung tâm Sky First' : 'Request a Sky First Center Account'}</h1>
+          <p class="section-desc">${isVi ? 'Vui lòng điền chính xác thông tin ở cả 5 bước. Bạn có thể quay lại các bước trước để chỉnh sửa mà không bị mất dữ liệu đã nhập.' : 'Complete all five steps accurately. You can return to previous steps to edit your information without losing the data entered.'}</p>
         </div>
       </div>
 
-      <div class="stepper" role="tablist" aria-label="Các bước đăng ký tài khoản">
+      <div class="stepper" role="tablist" aria-label="${isVi ? 'Các bước đăng ký tài khoản' : 'Account application steps'}">
         ${stepLabels.map((lbl, idx) => {
           const sNum = idx + 1;
           const cls = sNum === d.step ? 'active' : (sNum < d.step ? 'done' : '');
@@ -1528,9 +1512,82 @@ function renderRegister5StepsView(vp, isVi) {
   bindRegStepEvents(d, age, isMinor);
 }
 
+function localizeRegistrationMarkup(markup, english) {
+  if (!english) return markup;
+  const pairs = [
+    ['Bước 1 — Thông tin cá nhân','Step 1 — Personal information'],
+    ['Bước 2 — Học tập và công tác','Step 2 — Education and employment'],
+    ['Bước 3 — Thông tin định danh và Ảnh chân dung cá nhân','Step 3 — Identity information and personal portrait'],
+    ['Bước 4 — Mục đích đăng ký và thông tin bổ sung','Step 4 — Registration purpose and additional information'],
+    ['Bước 5 — Kiểm tra hồ sơ, Ký xác nhận và Gửi yêu cầu','Step 5 — Review, sign and submit your application'],
+    ['Họ và tên đầy đủ','Full name'], ['Địa chỉ Email','Email address'], ['Số điện thoại liên hệ','Contact phone number'],
+    ['Giới tính','Gender'], ['Ngày sinh * (Tính tuổi theo thời gian thực)','Date of birth * (age calculated automatically)'],
+    ['Nam</option>','Male</option>'], ['Nữ</option>','Female</option>'],
+    ['Tuổi tính tại thời điểm hiện tại:','Age today:'], ['tuổi</strong>','years old</strong>'],
+    ['(Dưới 18 tuổi — bắt buộc có thông tin Người giám hộ)','(Under 18 — guardian information required)'], ['(Đủ 18 tuổi)','(18 or older)'],
+    ['Thông tin Người giám hộ hợp pháp (Bắt buộc đối với người dưới 18 tuổi)','Legal guardian information (required for applicants under 18)'],
+    ['Họ và tên người giám hộ','Guardian full name'], ['Mối quan hệ với người đăng ký','Relationship to applicant'],
+    ['Số điện thoại người giám hộ','Guardian phone number'], ['Email người giám hộ (nếu có)','Guardian email (if available)'],
+    ['Họ tên cha/mẹ/người giám hộ','Parent/guardian full name'], ['Cha đẻ / Mẹ đẻ / Người giám hộ hợp pháp','Father / Mother / Legal guardian'],
+    ['Tôi xác nhận người giám hộ hợp pháp đã đọc quy định và đồng ý cho đăng ký tài khoản tại Trung tâm. *','I confirm that my legal guardian has read the requirements and consents to my account application. *'],
+    ['Tiếp tục Bước 2 →','Continue to Step 2 →'], ['Quay lại Bước 1','Back to Step 1'],
+    ['Nhóm người đăng ký','Applicant category'], ['Học sinh phổ thông','School student'], ['Sinh viên Đại học / Cao đẳng','College / university student'],
+    ['Nghiên cứu viên / Giảng viên','Researcher / lecturer'], ['Cán bộ / Chuyên gia','Staff member / specialist'], ['Tình nguyện viên / Cộng tác viên cộng đồng','Volunteer / community collaborator'],
+    ['Trình độ học vấn','Education level'], ['Trung học phổ thông</option>','High school</option>'], ['Cao đẳng / Đại học</option>','College / university</option>'],
+    ['Thạc sĩ</option>','Master\'s degree</option>'], ['Tiến sĩ</option>','Doctoral degree</option>'], ['Khác</option>','Other</option>'],
+    ['Trường / Đơn vị học tập hoặc công tác','School / study or workplace organization'], ['Nghề nghiệp / Vai trò hiện tại','Current occupation / role'],
+    ['Lớp *','Class *'], ['Lớp (nếu có)','Class (if applicable)'], ['Khoa / Bộ môn','Faculty / department'], ['Chuyên ngành / Lĩnh vực chuyên môn','Major / area of expertise'],
+    ['Đơn vị / Phòng ban công tác','Organization / department'], ['Chức vụ *','Position *'], ['Chức vụ (nếu có)','Position (if applicable)'],
+    ['Tiếp tục Bước 3 →','Continue to Step 3 →'], ['Quay lại Bước 2','Back to Step 2'],
+    ['Thông tin định danh được dùng cho mục đích xác minh hồ sơ. Tại bước này, ảnh cần tải lên là ảnh chân dung cá nhân của người đăng ký — không tải ảnh CCCD, hộ chiếu hoặc ảnh giấy tờ vào trường này.','Identity information is used to verify the application. Upload a personal portrait here—not a photo of an ID card, passport, or other identity document.'],
+    ['Loại giấy tờ định danh','Identity document type'], ['Căn cước công dân (CCCD - 12 chữ số)','Citizen ID (12 digits)'], ['Hộ chiếu (Passport)','Passport'], ['Thẻ học sinh / sinh viên','Student ID card'], ['Mã định danh giấy khai sinh','Birth certificate identifier'],
+    ['Số giấy tờ định danh','Identity document number'], ['Ngày cấp','Issue date'], ['Nơi cấp','Place of issue'], ['Ngày hết hạn giấy tờ (nếu có)','Document expiration date (if applicable)'],
+    ['Ảnh chân dung cá nhân (JPG/PNG/WEBP) *','Personal portrait (JPG/PNG/WEBP) *'], ['Chọn tệp trực tiếp từ thiết bị','Choose a file from your device'],
+    ['Tiếp tục Bước 4 →','Continue to Step 4 →'], ['Quay lại Bước 3','Back to Step 3'],
+    ['Lưu ý: Người đăng ký chỉ chọn nhóm vai trò đề xuất; vai trò chính thức trong hệ thống chỉ được xác lập sau khi Hội đồng/Cán bộ có thẩm quyền xét duyệt.','Note: You are selecting a requested role only. Your actual system role is assigned only after review and approval by an authorized person.'],
+    ['Nhóm vai trò đề xuất đăng ký','Requested role'], ['Thành viên Trung tâm (Member)','Center member (Member)'], ['Học viên / Thí sinh Khảo thí (Student)','Learner / assessment candidate (Student)'],
+    ['Thành viên Nhóm Nghiên cứu (Researcher)','Research team member (Researcher)'], ['Điều phối viên Dự án Cộng đồng (Project Coordinator)','Community project coordinator'], ['Cộng tác viên Khảo thí Học thuật (Examiner)','Academic assessment contributor (Examiner)'],
+    ['Lĩnh vực nghiên cứu hoặc dự án quan tâm','Research or project interests'], ['Khoa học giáo dục, Chuyển đổi số, Khảo thí học thuật...','Education science, digital transformation, academic assessment...'],
+    ['Mục đích xin cấp tài khoản chi tiết (tối thiểu 10 ký tự) *','Detailed reason for requesting an account (at least 10 characters) *'],
+    ['Mô tả rõ mục đích tham gia nghiên cứu, dự án cộng đồng hoặc khảo thí tại Trung tâm...','Describe why you want to participate in the Center’s research, community projects, or assessments...'],
+    ['Tóm tắt kinh nghiệm học thuật / hoạt động xã hội (nếu có)','Summary of academic or community experience (if any)'], ['Các đề tài, dự án hoặc hoạt động bạn đã từng tham gia...','Research, projects or activities you have participated in...'],
+    ['Hồ sơ / Tài liệu minh chứng bổ sung (PDF/JPG/PNG — nếu có)','Additional supporting documents (PDF/JPG/PNG — optional)'], ['Không bắt buộc','Optional'],
+    ['Tiếp tục Bước 5 →','Continue to Step 5 →'], ['Quay lại Bước 4','Back to Step 4'],
+    ['Bản tóm tắt thông tin hồ sơ trước khi gửi','Application summary before submission'], ['Họ và tên:','Full name:'], ['Ngày sinh:','Date of birth:'], ['Dưới 18 tuổi','Under 18'], ['Email & SĐT:','Email & phone:'], ['Người giám hộ:','Guardian:'],
+    ['Trình độ & Đơn vị:','Education & organization:'], ['Chuyên ngành / Vai trò:','Major / role:'], ['Giấy tờ định danh:','Identity document:'], ['Cấp ngày','Issued on'], ['Nhóm quyền đề xuất:','Requested role:'],
+    ['Sửa Bước 1','Edit Step 1'], ['Sửa Bước 2','Edit Step 2'], ['Sửa Bước 3','Edit Step 3'], ['Sửa Bước 4','Edit Step 4'],
+    ['Điều khoản đăng ký và sử dụng tài khoản Sky First','Sky First account registration and use terms'],
+    ['1. Mục đích tài khoản.','1. Account purpose.'], ['Tài khoản được sử dụng để truy cập các dịch vụ, hoạt động nghiên cứu, dự án cộng đồng và chức năng khảo thí mà Trung tâm cho phép theo vai trò được cấp.','The account provides access to services, research activities, community projects and assessments permitted by the Center for the assigned role.'],
+    ['2. Trách nhiệm người đăng ký.','2. Applicant responsibilities.'], ['Bạn có trách nhiệm cung cấp thông tin chính xác theo hiểu biết của mình, bảo vệ thông tin đăng nhập và không sử dụng tài khoản để truy cập trái phép hoặc gây ảnh hưởng đến hệ thống.','You must provide accurate information to the best of your knowledge, protect your credentials and not use the account for unauthorized access or to disrupt the system.'],
+    ['3. Xét duyệt.','3. Review.'], ['Gửi hồ sơ chỉ xác nhận yêu cầu đã được tiếp nhận; không bảo đảm tài khoản được cấp. Trung tâm có thể yêu cầu bổ sung thông tin và chỉ cấp quyền sau khi người có thẩm quyền phê duyệt.','Submitting an application confirms receipt only; it does not guarantee an account. The Center may request more information and grants access only after authorized approval.'],
+    ['4. Quản lý tài khoản.','4. Account management.'], ['Quyền truy cập phụ thuộc trạng thái tài khoản, vai trò được phê duyệt và quy định áp dụng. Những hành vi vi phạm có thể dẫn tới việc tạm hạn chế hoặc chấm dứt quyền truy cập theo quy trình phù hợp.','Access depends on account status, approved role and applicable rules. Violations may lead to restriction or termination of access under the relevant process.'],
+    ['5. Dữ liệu cá nhân.','5. Personal data.'], ['Thông tin liên hệ, thông tin định danh, ảnh chân dung và chữ ký được xử lý để tiếp nhận, xác minh và xét duyệt hồ sơ, quản lý tài khoản và đáp ứng nghĩa vụ liên quan. Quyền truy cập được giới hạn theo nhiệm vụ; việc lưu trữ và thực hiện quyền của chủ thể dữ liệu tuân theo thông báo quyền riêng tư được công bố.','Contact details, identity information, portrait and signature are processed to receive, verify and review applications, manage accounts and meet related obligations. Access is limited by role; retention and data-subject rights follow the published privacy notice.'],
+    ['6. Hỗ trợ và khiếu nại.','6. Support and complaints.'], ['Khi cần sửa thông tin hoặc làm rõ quyết định, người đăng ký liên hệ bộ phận hỗ trợ của Trung tâm qua','To correct information or request clarification of a decision, contact the Center at'], ['hoặc hotline','or call the hotline'],
+    ['Vui lòng đọc thêm','Please also read'], ['Điều khoản sử dụng đầy đủ','the full Terms of Use'], ['Thông báo bảo vệ dữ liệu cá nhân','the Personal Data Protection Notice'], ['Nội dung điều khoản chính thức cần được Trung tâm phê duyệt và duy trì nhất quán trên website.','The official terms must be approved by the Center and kept consistent across the website.'],
+    ['Các xác nhận bắt buộc trước khi ký và nộp','Required confirmations before signing and submission'], ['Xác nhận tính chính xác:','Accuracy confirmation:'], ['Bạn xác nhận đã kiểm tra thông tin trong bản tóm tắt, thông tin do mình cung cấp đúng theo hiểu biết và sẽ liên hệ Trung tâm nếu phát hiện sai sót cần điều chỉnh.','You confirm that you reviewed the summary and that the information is accurate to the best of your knowledge. Contact the Center if you discover an error.'],
+    ['Tôi xác nhận đã rà soát hồ sơ và cam kết tính chính xác của thông tin đã khai báo. *','I confirm that I have reviewed the application and that the information provided is accurate to the best of my knowledge. *'],
+    ['Thông báo xử lý dữ liệu cá nhân:','Personal data processing notice:'], ['Trung tâm sử dụng thông tin trong hồ sơ, ảnh chân dung và chữ ký để tiếp nhận, xác minh, xét duyệt và quản lý yêu cầu cấp tài khoản; chỉ người có nhiệm vụ phù hợp được truy cập. Hãy đọc thông báo quyền riêng tư để biết thêm về mục đích, thời hạn lưu giữ và cách thực hiện quyền của bạn.','The Center uses application information, portrait and signature to receive, verify and review account requests. Access is limited to authorized personnel. Read the privacy notice for purposes, retention and how to exercise your rights.'],
+    ['Tôi xác nhận đã được cung cấp và đã đọc','I confirm that I have been provided with and have read the'], ['Điều khoản sử dụng:','Terms of use:'], ['Điều khoản quy định trách nhiệm người đăng ký, việc sử dụng tài khoản theo quyền được cấp, quy trình xét duyệt và cách liên hệ khi có vấn đề. Việc tích chọn bên dưới thể hiện sự đồng ý sau khi đã đọc nội dung.','The terms explain applicant responsibilities, account use according to assigned permissions, review procedures and how to seek help. Checking below indicates agreement after reading the terms.'],
+    ['Tôi đã đọc, hiểu và đồng ý tuân thủ','I have read, understood and agree to comply with'],
+    ['Ký xác nhận của người đăng ký *','Applicant signature *'], ['Chọn một trong hai cách: ký trực tiếp trong khung bên dưới hoặc tải lên ảnh chữ ký của chính bạn. Kiểm tra chữ ký trong bản xem trước trước khi gửi hồ sơ.','Choose one method: sign in the box below or upload an image of your own signature. Review it before submitting.'],
+    ['Cách 1 — Ký trực tiếp bằng chuột, bút cảm ứng hoặc ngón tay','Method 1 — Sign using a mouse, stylus or finger'], ['Cách 2 — Tải ảnh chữ ký (PNG/JPG/WEBP, tối đa 150 KB)','Method 2 — Upload a signature image (PNG/JPG/WEBP, up to 150 KB)'], ['Đã chọn ảnh chữ ký; có thể tải lại để thay thế.','Signature image selected; you can upload a replacement.'], ['Chọn ảnh chữ ký cá nhân nếu không ký trực tiếp.','Choose a signature image if you do not sign directly.'],
+    ['Xem trước chữ ký hiện tại','Current signature preview'], ['Đã có nét ký trực tiếp trên khung ký.','A direct signature has been drawn in the box.'], ['Xóa chữ ký để ký lại','Clear signature and sign again'],
+    ['← Quay lại Bước 4','← Back to Step 4'], ['✓ Gửi Hồ sơ Yêu cầu Cấp Tài khoản','✓ Submit Account Application']
+  ];
+  let output = markup;
+  for (const [vi, en] of pairs) output = output.replaceAll(vi, en);
+  output = output.replaceAll('giấy tờ (nếu có)', 'document (if applicable)')
+    .replaceAll('Đúng 12 chữ số', 'Exactly 12 digits')
+    .replaceAll('Nhập số giấy tờ', 'Enter document number')
+    .replaceAll('Cục Cảnh sát QLHC về TTXH...', 'Civil Registry / issuing authority...')
+    .replaceAll('Bảo vệ dữ liệu cá nhân', 'Personal data protection');
+  return output;
+}
+
 function renderRegStepContent(d, age, isMinor) {
+  const renderLocalized = html => localizeRegistrationMarkup(html, AppState.lang === 'en');
   if (d.step === 1) {
-    return `
+    return renderLocalized(`
       <h3>Bước 1 — Thông tin cá nhân</h3>
       <div class="grid-2" style="margin-top:14px;">
         <div class="form-group">
@@ -1590,12 +1647,12 @@ function renderRegStepContent(d, age, isMinor) {
       <div style="display:flex;justify-content:flex-end;margin-top:20px;">
         <button type="button" class="btn btn-primary" id="btnStep1Next">Tiếp tục Bước 2 →</button>
       </div>
-    `;
+    `);
   }
 
   if (d.step === 2) {
     const grp = d.applicant_group;
-    return `
+    return renderLocalized(`
       <h3>Bước 2 — Học tập và công tác</h3>
       <div class="grid-2" style="margin-top:14px;">
         <div class="form-group">
@@ -1657,14 +1714,14 @@ function renderRegStepContent(d, age, isMinor) {
         <button type="button" class="btn btn-secondary" id="btnStep2Back">← Quay lại Bước 1</button>
         <button type="button" class="btn btn-primary" id="btnStep2Next">Tiếp tục Bước 3 →</button>
       </div>
-    `;
+    `);
   }
 
   if (d.step === 3) {
-    return `
-      <h3>Bước 3 — Thông tin định danh & Tải tệp bảo mật</h3>
+    return renderLocalized(`
+      <h3>Bước 3 — Thông tin định danh và Ảnh chân dung cá nhân</h3>
       <p style="font-size:13px;color:var(--emerald-600);margin:6px 0 14px;">
-        🔒 Thông tin định danh và tệp đính kèm được bảo vệ theo chính sách dữ liệu của Trung tâm. Vui lòng chỉ tải lên tài liệu thuộc về bạn và không gửi giấy tờ định danh qua email.
+        Thông tin định danh được dùng cho mục đích xác minh hồ sơ. Tại bước này, ảnh cần tải lên là ảnh chân dung cá nhân của người đăng ký — không tải ảnh CCCD, hộ chiếu hoặc ảnh giấy tờ vào trường này.
       </p>
       <div class="grid-2">
         <div class="form-group">
@@ -1694,26 +1751,12 @@ function renderRegStepContent(d, age, isMinor) {
         </div>
       </div>
 
-      <div class="grid-3" style="margin-top:10px;">
+      <div class="grid-2 registration-upload-grid" style="margin-top:10px;">
         <div class="card" style="padding:14px;">
           <label class="form-label" for="filePersonalPhoto">Ảnh chân dung cá nhân (JPG/PNG/WEBP) *</label>
           <input id="filePersonalPhoto" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="personal_photo" required>
           <small id="status_personal_photo" style="display:block;margin-top:6px;color:var(--emerald-600);font-weight:600;">
             ${d.personal_photo_name ? `✓ Đã tải: ${esc(d.personal_photo_name)}` : 'Chọn tệp trực tiếp từ thiết bị'}
-          </small>
-        </div>
-        <div class="card" style="padding:14px;">
-          <label class="form-label" for="fileIdFront">Ảnh mặt trước giấy tờ (JPG/PNG/WEBP, nếu được yêu cầu)</label>
-          <input id="fileIdFront" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="id_front">
-          <small id="status_id_front" style="display:block;margin-top:6px;color:var(--emerald-600);font-weight:600;">
-            ${d.id_front_name ? `✓ Đã tải: ${esc(d.id_front_name)}` : 'Chọn tệp trực tiếp từ thiết bị'}
-          </small>
-        </div>
-        <div class="card" style="padding:14px;">
-          <label class="form-label" for="fileIdBack">Ảnh mặt sau giấy tờ (JPG/PNG/WEBP, nếu được yêu cầu)</label>
-          <input id="fileIdBack" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="id_back">
-          <small id="status_id_back" style="display:block;margin-top:6px;color:var(--emerald-600);font-weight:600;">
-            ${d.id_back_name ? `✓ Đã tải: ${esc(d.id_back_name)}` : 'Chọn tệp trực tiếp từ thiết bị'}
           </small>
         </div>
       </div>
@@ -1722,11 +1765,11 @@ function renderRegStepContent(d, age, isMinor) {
         <button type="button" class="btn btn-secondary" id="btnStep3Back">← Quay lại Bước 2</button>
         <button type="button" class="btn btn-primary" id="btnStep3Next">Tiếp tục Bước 4 →</button>
       </div>
-    `;
+    `);
   }
 
   if (d.step === 4) {
-    return `
+    return renderLocalized(`
       <h3>Bước 4 — Mục đích đăng ký và thông tin bổ sung</h3>
       <p style="font-size:13px;color:var(--ink-500);margin:6px 0 14px;">
         Lưu ý: Người đăng ký chỉ chọn nhóm vai trò đề xuất; vai trò chính thức trong hệ thống chỉ được xác lập sau khi Hội đồng/Cán bộ có thẩm quyền xét duyệt.
@@ -1766,14 +1809,14 @@ function renderRegStepContent(d, age, isMinor) {
         <button type="button" class="btn btn-secondary" id="btnStep4Back">← Quay lại Bước 3</button>
         <button type="button" class="btn btn-primary" id="btnStep4Next">Tiếp tục Bước 5 →</button>
       </div>
-    `;
+    `);
   }
 
   const maskedIdPreview = d.id_number.length > 4
     ? '*'.repeat(d.id_number.length - 4) + d.id_number.slice(-4)
     : '****';
 
-  return `
+  return renderLocalized(`
     <h3>Bước 5 — Kiểm tra hồ sơ, Ký xác nhận và Gửi yêu cầu</h3>
     <div class="card" style="background:var(--bg-100);margin:14px 0;">
       <h4 style="margin-bottom:10px;color:var(--navy-900);">Bản tóm tắt thông tin hồ sơ trước khi gửi</h4>
@@ -1799,34 +1842,65 @@ function renderRegStepContent(d, age, isMinor) {
       </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Chữ ký xác nhận của người đăng ký (Ký trực tiếp trên khung bên dưới)</label>
-      <canvas id="signatureCanvas" class="signature-pad" width="500" height="140"></canvas>
-      <div style="margin-top:6px;">
-        <button type="button" class="btn btn-sm btn-secondary" id="btnClearSignature">Xóa chữ ký để ký lại</button>
-      </div>
-    </div>
+    <section class="registration-terms" aria-labelledby="registrationTermsTitle">
+      <h4 id="registrationTermsTitle">Điều khoản đăng ký và sử dụng tài khoản Sky First</h4>
+      <p><strong>1. Mục đích tài khoản.</strong> Tài khoản được sử dụng để truy cập các dịch vụ, hoạt động nghiên cứu, dự án cộng đồng và chức năng khảo thí mà Trung tâm cho phép theo vai trò được cấp.</p>
+      <p><strong>2. Trách nhiệm người đăng ký.</strong> Bạn có trách nhiệm cung cấp thông tin chính xác theo hiểu biết của mình, bảo vệ thông tin đăng nhập và không sử dụng tài khoản để truy cập trái phép hoặc gây ảnh hưởng đến hệ thống.</p>
+      <p><strong>3. Xét duyệt.</strong> Gửi hồ sơ chỉ xác nhận yêu cầu đã được tiếp nhận; không bảo đảm tài khoản được cấp. Trung tâm có thể yêu cầu bổ sung thông tin và chỉ cấp quyền sau khi người có thẩm quyền phê duyệt.</p>
+      <p><strong>4. Quản lý tài khoản.</strong> Quyền truy cập phụ thuộc trạng thái tài khoản, vai trò được phê duyệt và quy định áp dụng. Những hành vi vi phạm có thể dẫn tới việc tạm hạn chế hoặc chấm dứt quyền truy cập theo quy trình phù hợp.</p>
+      <p><strong>5. Dữ liệu cá nhân.</strong> Thông tin liên hệ, thông tin định danh, ảnh chân dung và chữ ký được xử lý để tiếp nhận, xác minh và xét duyệt hồ sơ, quản lý tài khoản và đáp ứng nghĩa vụ liên quan. Quyền truy cập được giới hạn theo nhiệm vụ; việc lưu trữ và thực hiện quyền của chủ thể dữ liệu tuân theo thông báo quyền riêng tư được công bố.</p>
+      <p><strong>6. Hỗ trợ và khiếu nại.</strong> Khi cần sửa thông tin hoặc làm rõ quyết định, người đăng ký liên hệ bộ phận hỗ trợ của Trung tâm qua <a href="mailto:support@skyfirst.io.vn">support@skyfirst.io.vn</a> hoặc hotline <a href="tel:0924910210">0924 910 210</a>.</p>
+      <p class="registration-terms-note">Vui lòng đọc thêm <a href="/gioi-thieu?section=dieu-khoan-su-dung" target="_blank" rel="noopener noreferrer">Điều khoản sử dụng đầy đủ</a> và <a href="/gioi-thieu?section=chinh-sach-bao-ve-du-lieu" target="_blank" rel="noopener noreferrer">Thông báo bảo vệ dữ liệu cá nhân</a>. Nội dung điều khoản chính thức cần được Trung tâm phê duyệt và duy trì nhất quán trên website.</p>
+    </section>
 
-    <div style="margin:16px 0;display:flex;flex-direction:column;gap:10px;font-size:13.5px;">
-      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="chkAccuracy" ${d.data_accuracy_confirmed ? 'checked' : ''} style="margin-top:4px;">
-        <span>Tôi cam đoan toàn bộ thông tin và tài liệu cung cấp trong hồ sơ này là hoàn toàn đúng sự thật và chịu trách nhiệm trước quy định của Trung tâm. *</span>
+    <section class="registration-confirmations" aria-labelledby="registrationConfirmTitle">
+      <h4 id="registrationConfirmTitle">Các xác nhận bắt buộc trước khi ký và nộp</h4>
+      <div class="registration-confirmation-copy">
+        <strong>Xác nhận tính chính xác:</strong> Bạn xác nhận đã kiểm tra thông tin trong bản tóm tắt, thông tin do mình cung cấp đúng theo hiểu biết và sẽ liên hệ Trung tâm nếu phát hiện sai sót cần điều chỉnh.
+      </div>
+      <label class="registration-check-row">
+        <input type="checkbox" id="chkAccuracy" ${d.data_accuracy_confirmed ? 'checked' : ''}>
+        <span>Tôi xác nhận đã rà soát hồ sơ và cam kết tính chính xác của thông tin đã khai báo. *</span>
       </label>
-      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="chkPrivacy" ${d.privacy_policy_accepted ? 'checked' : ''} style="margin-top:4px;">
-        <span>Tôi đã đọc và đồng ý với <a href="/gioi-thieu?section=chinh-sach-bao-ve-du-lieu" target="_blank">Chính sách bảo vệ dữ liệu cá nhân</a> và cho phép Trung tâm xử lý dữ liệu theo đúng mục đích xét duyệt tài khoản. *</span>
+      <div class="registration-confirmation-copy">
+        <strong>Thông báo xử lý dữ liệu cá nhân:</strong> Trung tâm sử dụng thông tin trong hồ sơ, ảnh chân dung và chữ ký để tiếp nhận, xác minh, xét duyệt và quản lý yêu cầu cấp tài khoản; chỉ người có nhiệm vụ phù hợp được truy cập. Hãy đọc thông báo quyền riêng tư để biết thêm về mục đích, thời hạn lưu giữ và cách thực hiện quyền của bạn.
+      </div>
+      <label class="registration-check-row">
+        <input type="checkbox" id="chkPrivacy" ${d.privacy_policy_accepted ? 'checked' : ''}>
+        <span>Tôi xác nhận đã được cung cấp và đã đọc <a href="/gioi-thieu?section=chinh-sach-bao-ve-du-lieu" target="_blank" rel="noopener noreferrer">Thông báo bảo vệ dữ liệu cá nhân</a>. *</span>
       </label>
-      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="chkTerms" ${d.terms_accepted ? 'checked' : ''} style="margin-top:4px;">
-        <span>Tôi đã đọc và đồng ý tuân thủ <a href="/gioi-thieu?section=dieu-khoan-su-dung" target="_blank">Điều khoản sử dụng</a> của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First. *</span>
+      <div class="registration-confirmation-copy">
+        <strong>Điều khoản sử dụng:</strong> Điều khoản quy định trách nhiệm người đăng ký, việc sử dụng tài khoản theo quyền được cấp, quy trình xét duyệt và cách liên hệ khi có vấn đề. Việc tích chọn bên dưới thể hiện sự đồng ý sau khi đã đọc nội dung.
+      </div>
+      <label class="registration-check-row">
+        <input type="checkbox" id="chkTerms" ${d.terms_accepted ? 'checked' : ''}>
+        <span>Tôi đã đọc, hiểu và đồng ý tuân thủ <a href="/gioi-thieu?section=dieu-khoan-su-dung" target="_blank" rel="noopener noreferrer">Điều khoản đăng ký và sử dụng tài khoản Sky First</a>. *</span>
       </label>
-    </div>
+    </section>
+
+    <section class="signature-section" aria-labelledby="signatureHeading">
+      <h4 id="signatureHeading">Ký xác nhận của người đăng ký *</h4>
+      <p>Chọn một trong hai cách: ký trực tiếp trong khung bên dưới hoặc tải lên ảnh chữ ký của chính bạn. Kiểm tra chữ ký trong bản xem trước trước khi gửi hồ sơ.</p>
+      <div class="signature-method-label">Cách 1 — Ký trực tiếp bằng chuột, bút cảm ứng hoặc ngón tay</div>
+      <canvas id="signatureCanvas" class="signature-pad" width="500" height="140" aria-label="Vùng ký trực tiếp"></canvas>
+      <div class="signature-upload-row">
+        <div class="signature-method-label">Cách 2 — Tải ảnh chữ ký (PNG/JPG/WEBP, tối đa 150 KB)</div>
+        <input id="fileSignatureImage" type="file" accept="image/png,image/jpeg,image/webp" class="form-control">
+        <small id="signatureUploadStatus">${d.signature_method === 'upload' && d.signature_data ? 'Đã chọn ảnh chữ ký; có thể tải lại để thay thế.' : 'Chọn ảnh chữ ký cá nhân nếu không ký trực tiếp.'}</small>
+      </div>
+      <div id="signaturePreviewWrap" class="signature-preview-wrap" ${d.signature_data ? '' : 'hidden'}>
+        <strong>Xem trước chữ ký hiện tại</strong>
+        <img id="signaturePreview" alt="Bản xem trước chữ ký" src="${d.signature_data && d.signature_method === 'upload' ? esc(d.signature_data) : ''}" ${d.signature_data && d.signature_method === 'upload' ? '' : 'hidden'}>
+        <span id="signatureDirectStatus" ${d.signature_data && d.signature_method === 'draw' ? '' : 'hidden'}>Đã có nét ký trực tiếp trên khung ký.</span>
+      </div>
+      <button type="button" class="btn btn-sm btn-secondary" id="btnClearSignature">Xóa chữ ký để ký lại</button>
+    </section>
 
     <div style="display:flex;justify-content:space-between;margin-top:20px;">
       <button type="button" class="btn btn-secondary" id="btnStep5Back">← Quay lại Bước 4</button>
       <button type="button" class="btn btn-emerald" id="btnSubmitAccountReq">✓ Gửi Hồ sơ Yêu cầu Cấp Tài khoản</button>
     </div>
-  `;
+  `);
 }
 
 function syncCurrentStepInputs() {
@@ -1982,43 +2056,125 @@ function bindRegStepEvents(d, age, isMinor) {
 
   document.getElementById('btnStep5Back')?.addEventListener('click', () => { syncCurrentStepInputs(); d.step = 4; renderRoute(); });
 
-  // Signature Pad initialization on Step 5
+  // Step 5 signature: direct canvas drawing OR uploaded personal-signature image.
   const canvas = document.getElementById('signatureCanvas');
+  const signatureFile = document.getElementById('fileSignatureImage');
+  const signaturePreviewWrap = document.getElementById('signaturePreviewWrap');
+  const signaturePreview = document.getElementById('signaturePreview');
+  const directStatus = document.getElementById('signatureDirectStatus');
+  const signatureStatus = document.getElementById('signatureUploadStatus');
+  const refreshSignaturePreview = () => {
+    if (signaturePreviewWrap) signaturePreviewWrap.hidden = !d.signature_data;
+    if (signaturePreview) {
+      signaturePreview.hidden = !(d.signature_data && d.signature_method === 'upload');
+      if (d.signature_method === 'upload' && d.signature_data) signaturePreview.src = d.signature_data;
+    }
+    if (directStatus) directStatus.hidden = !(d.signature_data && d.signature_method === 'draw');
+  };
   if (canvas) {
     const ctx = canvas.getContext('2d');
     ctx.strokeStyle = '#072556';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     let drawing = false;
+    let hasStroke = false;
     const getPos = e => {
       const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return { x: clientX - rect.left, y: clientY - rect.top };
+      return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) };
     };
+    if (d.signature_data && d.signature_method === 'draw') {
+      const image = new Image();
+      image.onload = () => ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      image.src = d.signature_data;
+      hasStroke = true;
+    }
     canvas.addEventListener('pointerdown', e => {
+      e.preventDefault();
       drawing = true;
+      canvas.setPointerCapture?.(e.pointerId);
+      d.signature_method = 'draw';
+      d.signature_data = '';
+      if (signatureFile) signatureFile.value = '';
+      if (signatureStatus) signatureStatus.textContent = 'Đang dùng chữ ký ký trực tiếp.';
+      if (signaturePreview) signaturePreview.hidden = true;
+      if (directStatus) directStatus.hidden = false;
+      if (signaturePreviewWrap) signaturePreviewWrap.hidden = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       const p = getPos(e);
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + 0.01, p.y + 0.01);
+      ctx.stroke();
+      hasStroke = true;
+      d.signature_data = canvas.toDataURL('image/png');
     });
     canvas.addEventListener('pointermove', e => {
       if (!drawing) return;
       const p = getPos(e);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
+      hasStroke = true;
       d.signature_data = canvas.toDataURL('image/png');
+      d.signature_method = 'draw';
+      refreshSignaturePreview();
     });
-    window.addEventListener('pointerup', () => { drawing = false; });
+    const finishDrawing = () => { drawing = false; if (hasStroke) { d.signature_data = canvas.toDataURL('image/png'); d.signature_method = 'draw'; refreshSignaturePreview(); } };
+    canvas.addEventListener('pointerup', finishDrawing);
+    canvas.addEventListener('pointercancel', finishDrawing);
     document.getElementById('btnClearSignature')?.addEventListener('click', () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (signatureFile) signatureFile.value = '';
       d.signature_data = '';
+      d.signature_method = '';
+      hasStroke = false;
+      if (signatureStatus) signatureStatus.textContent = 'Chọn ảnh chữ ký cá nhân nếu không ký trực tiếp.';
+      refreshSignaturePreview();
     });
   }
+  signatureFile?.addEventListener('change', async () => {
+    const file = signatureFile.files?.[0];
+    if (!file) return;
+    if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 150 * 1024) {
+      signatureFile.value = '';
+      if (signatureStatus) signatureStatus.textContent = 'Tệp không hợp lệ. Chỉ chấp nhận PNG/JPG/WEBP tối đa 150 KB.';
+      return showErr('Ảnh chữ ký phải là PNG, JPG hoặc WEBP và không vượt quá 150 KB.');
+    }
+    try {
+      const source = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Không đọc được ảnh chữ ký.'));
+        reader.readAsDataURL(file);
+      });
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error('Ảnh chữ ký không đọc được.')); image.src = source;
+      });
+      const staging = document.createElement('canvas');
+      const scale = Math.min(1, 1000 / img.width, 300 / img.height);
+      staging.width = Math.max(1, Math.round(img.width * scale));
+      staging.height = Math.max(1, Math.round(img.height * scale));
+      const c = staging.getContext('2d'); c.fillStyle = '#ffffff'; c.fillRect(0,0,staging.width,staging.height); c.drawImage(img,0,0,staging.width,staging.height);
+      const normalized = staging.toDataURL('image/png');
+      if (normalized.length > 340000) throw new Error('Ảnh chữ ký sau khi xử lý vẫn quá lớn. Vui lòng chọn ảnh đơn giản hơn.');
+      d.signature_data = normalized;
+      d.signature_method = 'upload';
+      const ctx = canvas?.getContext('2d'); if (ctx && canvas) ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (signatureStatus) signatureStatus.textContent = `Đã chọn ảnh chữ ký: ${file.name}`;
+      refreshSignaturePreview();
+    } catch (err) {
+      signatureFile.value = '';
+      if (signatureStatus) signatureStatus.textContent = err.message;
+      showErr(err.message);
+    }
+  });
+  refreshSignaturePreview();
 
   document.getElementById('btnSubmitAccountReq')?.addEventListener('click', async () => {
     syncCurrentStepInputs();
+    if (!d.signature_data) return showErr('Vui lòng ký trực tiếp hoặc tải ảnh chữ ký cá nhân trước khi gửi hồ sơ.');
     if (!d.data_accuracy_confirmed || !d.privacy_policy_accepted || !d.terms_accepted) {
-      return showErr('Vui lòng tích chọn đầy đủ cả 3 mục xác nhận tính chính xác, Chính sách bảo vệ dữ liệu cá nhân và Điều khoản sử dụng.');
+      return showErr('Vui lòng đọc nội dung và tích chọn đầy đủ 3 xác nhận: tính chính xác, thông báo dữ liệu cá nhân và điều khoản sử dụng.');
     }
     const btn = document.getElementById('btnSubmitAccountReq');
     btn.disabled = true;
@@ -2117,87 +2273,29 @@ function renderLookupView(vp, isVi) {
 // VIEW 11: QUÊN MẬT KHẨU & ĐẶT LẠI MẬT KHẨU (/quen-mat-khau)
 // ============================================================================
 function renderForgotPasswordView(vp, isVi) {
-  const resetToken = AppState.currentQuery.get('reset_token') || '';
+  const title = isVi ? 'Quên mật khẩu?' : 'Forgot your password?';
+  const description = isVi
+    ? 'Vì lý do bảo mật, việc khôi phục mật khẩu được hỗ trợ trực tiếp bởi quản trị viên. Vui lòng liên hệ quản trị viên hoặc gọi hotline để được hướng dẫn xác minh và khôi phục quyền truy cập.'
+    : 'For account security, password recovery is handled by an administrator. Please contact your administrator or call the support hotline for identity verification and help restoring access.';
   vp.innerHTML = `
-    <div class="container" style="max-width:620px;">
-      <div class="section-head">
-        <div>
-          <span class="eyebrow">${isVi ? 'KHÔI PHỤC QUYỀN TRUY CẬP' : 'ACCOUNT RECOVERY'}</span>
-          <h1 class="section-title">${resetToken ? (isVi ? 'Đặt lại Mật khẩu Mới' : 'Set New Password') : (isVi ? 'Quên mật khẩu' : 'Forgot Password')}</h1>
+    <section class="container auth-help-page">
+      <div class="auth-help-card">
+        <div class="auth-help-icon" aria-hidden="true">🔐</div>
+        <p class="eyebrow">${isVi ? 'HỖ TRỢ TÀI KHOẢN' : 'ACCOUNT SUPPORT'}</p>
+        <h1 class="section-title">${title}</h1>
+        <p class="section-desc">${description}</p>
+        <div class="hotline-panel">
+          <span>${isVi ? 'HOTLINE HỖ TRỢ' : 'SUPPORT HOTLINE'}</span>
+          <a href="tel:0924910210">0924 910 210</a>
+          <small>${isVi ? 'Vui lòng chuẩn bị email hoặc mã thành viên để quản trị viên hỗ trợ xác minh.' : 'Please have your registered email or member ID ready for verification.'}</small>
+        </div>
+        <div class="auth-help-actions">
+          <a class="btn btn-primary" href="tel:0924910210">${isVi ? 'Gọi hotline' : 'Call hotline'}</a>
+          <a class="auth-back-link" href="/dang-nhap" data-nav="/dang-nhap">${isVi ? 'Quay lại đăng nhập' : 'Back to sign in'}</a>
         </div>
       </div>
-      <div class="doc-panel">
-        ${resetToken ? `
-          <form id="resetPasswordForm">
-            <div class="form-group">
-              <label class="form-label" for="inpNewPassword">Mật khẩu mới (tối thiểu 10 ký tự) *</label>
-              <input id="inpNewPassword" type="password" class="form-control" required minlength="10">
-            </div>
-            <div id="resetPasswordMsg"></div>
-            <button type="submit" class="btn btn-primary" id="btnSubmitResetPwd">Xác nhận đổi mật khẩu</button>
-          </form>
-        ` : `
-          <p style="font-size:13.5px;color:var(--ink-700);margin-bottom:16px;">
-            Nhập địa chỉ email tài khoản của bạn. Hệ thống sẽ tạo mã khôi phục dùng một lần (hiệu lực 30 phút, lưu dạng băm SHA-256 trên D1) và gửi hướng dẫn qua dịch vụ email đã cấu hình.
-          </p>
-          <form id="forgotPasswordForm">
-            <div class="form-group">
-              <label class="form-label" for="inpForgotEmail">Địa chỉ Email tài khoản *</label>
-              <input id="inpForgotEmail" type="email" class="form-control" placeholder="email@domain.com" required>
-            </div>
-            <div id="forgotPasswordMsg"></div>
-            <button type="submit" class="btn btn-primary" id="btnSubmitForgotPwd">Gửi yêu cầu đặt lại mật khẩu</button>
-          </form>
-        `}
-      </div>
-    </div>
+    </section>
   `;
-
-  document.getElementById('forgotPasswordForm')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const msg = document.getElementById('forgotPasswordMsg');
-    const btn = document.getElementById('btnSubmitForgotPwd');
-    btn.disabled = true;
-    msg.innerHTML = '';
-    try {
-      const res = await apiFetch('/api/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email: document.getElementById('inpForgotEmail').value.trim() })
-      });
-      msg.innerHTML = `
-        <div class="alert-box alert-success">
-          ${esc(res.message)}
-          ${!res.email_provider_configured ? '<br><small>Lưu ý hệ thống: Dịch vụ gửi email (EMAIL_WEBHOOK_URL) hiện ở trạng thái chờ cấu hình Secret trên Cloudflare Worker.</small>' : ''}
-        </div>
-      `;
-    } catch (err) {
-      msg.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-  document.getElementById('resetPasswordForm')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const msg = document.getElementById('resetPasswordMsg');
-    const btn = document.getElementById('btnSubmitResetPwd');
-    btn.disabled = true;
-    msg.innerHTML = '';
-    try {
-      const res = await apiFetch('/api/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({
-          reset_token: resetToken,
-          new_password: document.getElementById('inpNewPassword').value
-        })
-      });
-      msg.innerHTML = `<div class="alert-box alert-success">${esc(res.message)} <a href="/dang-nhap" data-nav="/dang-nhap">Đăng nhập ngay →</a></div>`;
-    } catch (err) {
-      msg.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
-    } finally {
-      btn.disabled = false;
-    }
-  });
 }
 
 // ============================================================================
@@ -2208,8 +2306,6 @@ function renderLoginView(vp, isVi) {
     navigateTo('/bang-dieu-khien', true);
     return;
   }
-
-  const showBootstrapSetup = !AppState.bootstrapStatus.is_completed && AppState.bootstrapStatus.bootstrap_allowed;
 
   vp.innerHTML = `
     <div class="container" style="max-width:580px;">
@@ -2240,35 +2336,8 @@ function renderLoginView(vp, isVi) {
           </div>
         </form>
 
-        ${showBootstrapSetup ? `
-          <div style="margin-top:28px;padding-top:20px;border-top:1px dashed var(--line-200);">
-            <span class="eyebrow">KHỞI TẠO HỆ THỐNG LẦN ĐẦU (ONE-TIME SETUP)</span>
-            <h3 style="margin-top:6px;">Khởi tạo Quản trị viên Đầu tiên (Bootstrap)</h3>
-            <p style="font-size:13px;color:var(--ink-700);margin-bottom:12px;">
-              Cơ sở dữ liệu hiện chưa có Quản trị viên hệ thống. Nếu bạn là người quản trị hạ tầng, vui lòng nhập mã <code>BOOTSTRAP_SECRET_TOKEN</code> đã cấu hình trong Cloudflare Secrets để tạo tài khoản quản trị đầu tiên. Sau khi hoàn tất, biểu mẫu này sẽ tự động khóa vĩnh viễn.
-            </p>
-            <form id="bootstrapInitForm">
-              <div class="form-group">
-                <label class="form-label" for="inpBootSecret">Bootstrap Secret Token (Header X-Bootstrap-Token) *</label>
-                <input id="inpBootSecret" type="password" class="form-control" autocomplete="off" required placeholder="Nhập mã bí mật từ Cloudflare Secret">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="inpBootName">Họ và tên Quản trị viên *</label>
-                <input id="inpBootName" class="form-control" autocomplete="off" required placeholder="Nhập họ tên quản trị viên">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="inpBootEmail">Email Quản trị viên *</label>
-                <input id="inpBootEmail" type="email" class="form-control" autocomplete="off" required placeholder="admin@domain.com">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="inpBootPass">Mật khẩu Quản trị (tối thiểu 10 ký tự) *</label>
-                <input id="inpBootPass" type="password" class="form-control" autocomplete="new-password" required minlength="10">
-              </div>
-              <div id="bootStatusMsg"></div>
-              <button type="submit" class="btn btn-secondary" id="btnSubmitBootstrap">Khởi tạo Quản trị viên & Khóa Bootstrap</button>
-            </form>
-          </div>
-        ` : ''}
+        <p class="auth-bootstrap-note">${isVi ? 'Khởi tạo quản trị viên đầu tiên được thực hiện qua quy trình quản trị hạ tầng được bảo vệ, không thực hiện tại trang công khai này.' : 'First-admin initialization is handled through the protected infrastructure process, not on this public page.'}</p>
+
       </div>
     </div>
   `;
@@ -2301,32 +2370,7 @@ function renderLoginView(vp, isVi) {
     }
   });
 
-  document.getElementById('bootstrapInitForm')?.addEventListener('submit', async e => {
-    e.preventDefault();
-    const msgBox = document.getElementById('bootStatusMsg');
-    const btn = document.getElementById('btnSubmitBootstrap');
-    btn.disabled = true;
-    msgBox.innerHTML = '';
-    try {
-      const tokenVal = document.getElementById('inpBootSecret').value.trim();
-      const res = await apiFetch('/api/bootstrap/init', {
-        method: 'POST',
-        headers: { 'X-Bootstrap-Token': tokenVal },
-        body: JSON.stringify({
-          full_name: document.getElementById('inpBootName').value.trim(),
-          email: document.getElementById('inpBootEmail').value.trim(),
-          password: document.getElementById('inpBootPass').value
-        })
-      });
-      AppState.bootstrapStatus = { bootstrap_allowed: false, is_completed: true };
-      msgBox.innerHTML = `<div class="alert-box alert-success">${esc(res.message)} Vui lòng đăng nhập ở biểu mẫu phía trên.</div>`;
-      setTimeout(() => renderRoute(), 1500);
-    } catch (err) {
-      msgBox.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
-    } finally {
-      btn.disabled = false;
-    }
-  });
+
 }
 
 // ============================================================================
@@ -2361,6 +2405,7 @@ async function renderDashboardView(vp, isVi) {
   const u = AppState.currentUser;
   const isCmsRole = ['super_admin', 'cms_editor'].includes(u.role);
   const isReviewRole = ['super_admin', 'reviewer'].includes(u.role);
+  const isSuperAdmin = u.role === 'super_admin';
   const tab = AppState.activeDashboardTab;
 
   vp.innerHTML = `
@@ -2383,7 +2428,8 @@ async function renderDashboardView(vp, isVi) {
           <button type="button" class="cms-nav-btn ${tab === 'profile' ? 'active' : ''}" data-dash-tab="profile"><span>👤 Hồ sơ & Ảnh đại diện</span></button>
           <button type="button" class="cms-nav-btn ${tab === 'research_projects' ? 'active' : ''}" data-dash-tab="research_projects"><span>🔬 Nghiên cứu, Dự án & Tiến độ</span></button>
           <button type="button" class="cms-nav-btn ${tab === 'exams' ? 'active' : ''}" data-dash-tab="exams"><span>📝 Khảo thí & Kết quả</span></button>
-          <button type="button" class="cms-nav-btn ${tab === 'chat' ? 'active' : ''}" data-dash-tab="chat"><span>💬 Tin nhắn Nội bộ</span></button>
+          <button type="button" class="cms-nav-btn ${tab === 'chat' ? 'active' : ''}" data-dash-tab="chat"><span>💬 Chat riêng & Nhóm bảo mật</span></button>
+          ${isSuperAdmin ? `<div class="cms-nav-group">Quản lý truy cập</div><button type="button" class="cms-nav-btn ${tab === 'users' ? 'active' : ''}" data-dash-tab="users"><span>👥 Người dùng & Vai trò</span></button>` : ''}
 
           ${isReviewRole ? `
             <div class="cms-nav-group">Xét duyệt & Quản trị</div>
@@ -2396,7 +2442,7 @@ async function renderDashboardView(vp, isVi) {
           ${isCmsRole ? `
             <div class="cms-nav-group">Quản trị Nội dung CMS</div>
             <button type="button" class="cms-nav-btn ${tab === 'cms_posts' ? 'active' : ''}" data-dash-tab="cms_posts">
-              <span>📰 Quản lý Bài viết (AI/CMS)</span>
+              <span>📰 Quản lý Bài viết</span>
               <span>${(AppState.dashboardData?.cms?.posts || []).length}</span>
             </button>
             <button type="button" class="cms-nav-btn ${tab === 'cms_pages' ? 'active' : ''}" data-dash-tab="cms_pages">
@@ -2424,12 +2470,30 @@ async function renderDashboardView(vp, isVi) {
   });
 
   const subVp = document.getElementById('dashboardTabViewport');
-  renderDashboardSubTab(subVp, tab);
+  renderDashboardSubTab(subVp, tab, isVi);
 }
 
-function renderDashboardSubTab(subVp, tab) {
+async function renderDashboardSubTab(subVp, tab, isVi = AppState.lang === 'vi') {
   const d = AppState.dashboardData;
   const u = AppState.currentUser;
+
+  if (tab === 'users') {
+    if (u.role !== 'super_admin') { subVp.innerHTML = '<div class="alert-box alert-error">Chỉ super admin được quản lý tài khoản người dùng.</div>'; return; }
+    subVp.innerHTML = `<h2>${isVi ? 'Quản lý người dùng và vai trò' : 'User and role management'}</h2><p class="section-desc">${isVi ? 'Chỉ super admin có thể thay đổi trạng thái/vai trò hoặc tạo mật khẩu tạm thời. Mật khẩu chỉ được hiển thị một lần.' : 'Only super admins can change roles/status or issue a temporary password. The password is displayed once.'}</p><div class="chat-loading"><span class="page-state-spinner"></span><p>${isVi ? 'Đang tải danh sách người dùng…' : 'Loading users…'}</p></div>`;
+    try {
+      const result = await apiFetch('/api/admin/users');
+      const users = result.users || [];
+      subVp.innerHTML = `<h2>${isVi ? 'Quản lý người dùng và vai trò' : 'User and role management'}</h2><p class="section-desc">${isVi ? 'Chỉ super admin có thể thay đổi trạng thái/vai trò hoặc tạo mật khẩu tạm thời. Mật khẩu chỉ được hiển thị một lần; xác minh danh tính người nhận qua kênh chính thức.' : 'Only super admins can change roles/status or issue a temporary password. Verify the recipient identity through an official channel.'}</p>${users.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>${isVi?'Người dùng':'User'}</th><th>${isVi?'Vai trò':'Role'}</th><th>${isVi?'Trạng thái':'Status'}</th><th>${isVi?'Đăng nhập gần nhất':'Last login'}</th><th>${isVi?'Thao tác':'Actions'}</th></tr></thead><tbody>${users.map(x=>`<tr><td><strong>${esc(x.full_name)}</strong><br><small>${esc(x.email)}</small><br><code>${esc(x.sfn_id||x.id)}</code></td><td><select class="form-control admin-user-role" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${['super_admin','cms_editor','reviewer','research_lead','researcher','project_manager','project_lead','examiner','member','student'].map(role=>`<option value="${role}" ${x.role===role?'selected':''}>${role}</option>`).join('')}</select></td><td><select class="form-control admin-user-status" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${[['active','Đang hoạt động'],['pending','Chờ kích hoạt'],['suspended','Tạm khóa'],['locked','Đã khóa']].map(([value,label])=>`<option value="${value}" ${x.status===value?'selected':''}>${isVi?label:value}</option>`).join('')}</select></td><td>${esc(x.last_login_at||'—')}</td><td><div class="admin-user-actions"><button type="button" class="btn btn-sm btn-primary btn-save-admin-user" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${isVi?'Lưu quyền':'Save'}</button><button type="button" class="btn btn-sm btn-secondary btn-issue-temp-password" data-user-id="${esc(x.id)}">${isVi?'Tạo mật khẩu tạm':'Issue temp password'}</button></div></td></tr>`).join('')}</tbody></table></div>` : `<div class="empty-state">${isVi?'Chưa có tài khoản người dùng.':'No user accounts found.'}</div>`}`;
+      subVp.querySelectorAll('.btn-save-admin-user').forEach(btn=>btn.addEventListener('click',async()=>{const id=btn.dataset.userId;const role=subVp.querySelector(`.admin-user-role[data-user-id="${CSS.escape(id)}"]`)?.value;const status=subVp.querySelector(`.admin-user-status[data-user-id="${CSS.escape(id)}"]`)?.value;btn.disabled=true;try{await apiFetch(`/api/admin/users/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify({role,status})});showToast(isVi?'Đã cập nhật quyền và trạng thái người dùng.':'User role and status updated.');await renderDashboardSubTab(subVp,'users',isVi);}catch(err){showToast(err.message,true);btn.disabled=false;}}));
+      subVp.querySelectorAll('.btn-issue-temp-password').forEach(btn=>btn.addEventListener('click',async()=>{const id=btn.dataset.userId;if(!window.confirm(isVi?'Tạo mật khẩu tạm mới, kích hoạt tài khoản và thu hồi các phiên cũ? Chỉ tiếp tục sau khi đã xác minh danh tính người nhận.':'Issue a new temporary password, activate the account and revoke old sessions? Continue only after verifying the recipient identity.'))return;btn.disabled=true;try{const result=await apiFetch(`/api/admin/users/${encodeURIComponent(id)}/temporary-password`,{method:'POST',body:JSON.stringify({})});window.alert(`${isVi?'MẬT KHẨU TẠM THỜI — CHỈ HIỂN THỊ MỘT LẦN':'TEMPORARY PASSWORD — SHOWN ONCE'}
+
+${result.full_name} (${result.email})
+${result.temporary_password}
+
+${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua nhóm chat hoặc email không an toàn.':'Share only through a verified channel. Do not send this password in group chat or insecure email.'}`);showToast(isVi?'Đã tạo mật khẩu tạm, tài khoản được kích hoạt và các phiên cũ bị thu hồi.':'Temporary password issued; account activated and old sessions revoked.');await renderDashboardSubTab(subVp,'users',isVi);}catch(err){showToast(err.message,true);btn.disabled=false;}}));
+    } catch (err) { subVp.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`; }
+    return;
+  }
 
   if (tab === 'overview') {
     subVp.innerHTML = `
@@ -3033,6 +3097,7 @@ function renderDashboardSubTab(subVp, tab) {
     const reqs = d.admin?.account_requests || [];
     subVp.innerHTML = `
       <h2 style="margin-bottom:14px;color:var(--navy-900);">Xét duyệt Hồ sơ Yêu cầu Cấp Tài khoản & Cấp Quyền Hệ thống</h2>
+      <section id="requestDetailPanel" class="request-detail-panel card" hidden aria-live="polite"></section>
       ${reqs.length === 0 ? `<div class="empty-state"><p>Hiện chưa có hồ sơ yêu cầu cấp tài khoản nào.</p></div>` : `
         <table class="data-table">
           <thead>
@@ -3069,7 +3134,10 @@ function renderDashboardSubTab(subVp, tab) {
                     <option value="Đã kích hoạt tài khoản" ${r.status === 'Đã kích hoạt tài khoản' ? 'selected' : ''}>Đã kích hoạt tài khoản</option>
                   </select>
                   <input class="form-control inp-req-note" data-req-id="${esc(r.id)}" placeholder="Ghi chú công khai..." value="${esc(r.review_notes_public || '')}" style="font-size:12px;padding:5px;margin-bottom:6px;">
-                  <button type="button" class="btn btn-sm btn-primary btn-save-review" data-req-id="${esc(r.id)}">Lưu xét duyệt</button>
+                  <div class="request-review-actions">
+                    <button type="button" class="btn btn-sm btn-secondary btn-view-request" data-req-id="${esc(r.id)}">Xem hồ sơ, ảnh chân dung & chữ ký</button>
+                    <button type="button" class="btn btn-sm btn-primary btn-save-review" data-req-id="${esc(r.id)}">Lưu xét duyệt</button>
+                  </div>
                 </td>
               </tr>
             `).join('')}
@@ -3077,6 +3145,38 @@ function renderDashboardSubTab(subVp, tab) {
         </table>
       `}
     `;
+
+    subVp.querySelectorAll('.btn-view-request').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const reqId = btn.getAttribute('data-req-id');
+        const panel = document.getElementById('requestDetailPanel');
+        if (!panel) return;
+        panel.hidden = false;
+        panel.innerHTML = '<div class="chat-loading"><span class="page-state-spinner"></span><p>Đang tải hồ sơ riêng tư theo quyền xét duyệt…</p></div>';
+        try {
+          const detail = await apiFetch(`/api/admin/account-requests/${encodeURIComponent(reqId)}`);
+          let portraitSrc = '';
+          if (detail.portrait_media_id) {
+            const headers = new Headers({ Authorization: `Bearer ${AppState.token}` });
+            if (AppState.csrfToken) headers.set('X-CSRF-Token', AppState.csrfToken);
+            const imageResponse = await fetch(`/api/media/${encodeURIComponent(detail.portrait_media_id)}`, { headers, cache: 'no-store' });
+            if (imageResponse.ok) portraitSrc = URL.createObjectURL(await imageResponse.blob());
+          }
+          panel.innerHTML = `
+            <div class="request-detail-heading"><div><span class="eyebrow">HỒ SƠ RIÊNG TƯ · CHỈ DÀNH CHO NGƯỜI CÓ QUYỀN</span><h3>${esc(detail.full_name)} — ${esc(detail.request_code)}</h3><p>${esc(detail.status)}</p></div><button type="button" class="btn btn-sm btn-secondary" id="btnCloseRequestDetail">Đóng chi tiết</button></div>
+            <div class="request-detail-grid">
+              <section><h4>Thông tin cá nhân</h4><dl><dt>Email</dt><dd>${esc(detail.email)}</dd><dt>Điện thoại</dt><dd>${esc(detail.phone)}</dd><dt>Ngày sinh</dt><dd>${esc(detail.date_of_birth)}</dd><dt>Giới tính</dt><dd>${esc(detail.gender)}</dd><dt>Nhóm ứng viên</dt><dd>${esc(detail.applicant_group)}</dd><dt>Học tập / Công tác</dt><dd>${esc([detail.education_level,detail.institution_name,detail.major_or_field,detail.current_occupation,detail.work_unit].filter(Boolean).join(' · '))}</dd></dl></section>
+              <section><h4>Thông tin định danh</h4><dl><dt>Loại giấy tờ</dt><dd>${esc(detail.id_document_type)}</dd><dt>Số giấy tờ (đã che)</dt><dd>${esc(detail.id_number_masked)}</dd><dt>Ngày cấp</dt><dd>${esc(detail.id_issued_date)}</dd><dt>Nơi cấp</dt><dd>${esc(detail.id_issued_place)}</dd><dt>Hạn sử dụng</dt><dd>${esc(detail.id_expiry_date || 'Không cung cấp')}</dd><dt>Mục đích đăng ký</dt><dd>${esc(detail.registration_purpose)}</dd><dt>Lĩnh vực quan tâm</dt><dd>${esc(detail.research_or_project_interest)}</dd></dl></section>
+              <section><h4>Ảnh chân dung cá nhân</h4>${portraitSrc ? `<a href="${portraitSrc}" target="_blank" rel="noopener noreferrer"><img class="request-portrait-preview" src="${portraitSrc}" alt="Ảnh chân dung ứng viên"></a>` : '<p class="text-muted">Không tải được ảnh hoặc ảnh chưa có.</p>'}</section>
+              <section><h4>Chữ ký xác nhận</h4>${detail.signature_data ? `<img class="request-signature-preview" src="${esc(detail.signature_data)}" alt="Chữ ký xác nhận của người đăng ký">` : '<p class="text-muted">Hồ sơ chưa có chữ ký.</p>'}<p class="text-muted">Đã xác nhận tính chính xác: ${detail.data_accuracy_confirmed ? 'Có' : 'Không'} · Điều khoản: ${detail.terms_accepted ? 'Đã xác nhận' : 'Chưa xác nhận'} · Thông báo dữ liệu: ${detail.privacy_policy_accepted ? 'Đã xác nhận' : 'Chưa xác nhận'}</p></section>
+            </div>`;
+          document.getElementById('btnCloseRequestDetail')?.addEventListener('click', () => { panel.hidden = true; panel.innerHTML = ''; });
+        } catch (err) {
+          panel.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div><button type="button" class="btn btn-sm btn-secondary" id="btnCloseRequestDetail">Đóng</button>`;
+          document.getElementById('btnCloseRequestDetail')?.addEventListener('click', () => { panel.hidden = true; panel.innerHTML = ''; });
+        }
+      });
+    });
 
     subVp.querySelectorAll('.btn-save-review').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -3248,82 +3348,183 @@ function renderDashboardSubTab(subVp, tab) {
 
   if (tab === 'chat') {
     const rooms = AppState.chatRooms;
+    const activeRoomId = AppState.activeChatRoomId;
+    const selectedRoom = rooms.find(r => r.id === activeRoomId) || null;
     subVp.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="color:var(--navy-900);">Tin nhắn Nội bộ & Trao đổi Học thuật (Kiểm soát Quyền Thành viên)</h2>
-        <button type="button" class="btn btn-primary btn-sm" id="btnCreateChatRoom">+ Tạo phòng trao đổi</button>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <h3>Danh sách Phòng hội thoại của bạn</h3>
-          ${rooms.length === 0 ? `<p style="margin-top:8px;">Chưa có phòng hội thoại nào.</p>` : `
-            <ul style="list-style:none;margin-top:10px;">
-              ${rooms.map(r => `
-                <li style="margin-bottom:8px;">
-                  <button type="button" class="btn btn-secondary btn-sm btn-open-room" data-room-id="${esc(r.id)}" style="width:100%;justify-content:space-between;">
-                    <span>💬 ${esc(r.name)}</span>
-                    <span>→</span>
+      <section class="chat-admin-module">
+        <div class="chat-module-heading">
+          <div>
+            <span class="eyebrow">GIAO TIẾP NỘI BỘ</span>
+            <h2>Chat riêng 1–1 và nhóm bảo mật</h2>
+            <p>Chỉ thành viên được cấp quyền mới xem được lịch sử tin nhắn và tệp của hội thoại.</p>
+          </div>
+          <div class="chat-security-note"><span aria-hidden="true">🔒</span><span>Quyền thành viên được kiểm tra tại backend</span></div>
+        </div>
+        <div class="chat-contact-search card">
+          <label class="form-label" for="chatContactQuery">Tìm người dùng để bắt đầu trò chuyện hoặc thêm vào nhóm</label>
+          <div class="chat-search-row">
+            <input id="chatContactQuery" class="form-control" minlength="2" placeholder="Nhập tên, mã thành viên hoặc email (tối thiểu 2 ký tự)" autocomplete="off">
+            <button type="button" class="btn btn-primary" id="btnFindChatContacts">Tìm người dùng</button>
+          </div>
+          <div id="chatContactsResults" class="chat-contacts-results" aria-live="polite">
+            <p class="chat-helper">Kết quả tìm kiếm chỉ hiển thị tên, mã thành viên và vai trò cơ bản; không hiển thị số điện thoại hay thông tin riêng tư.</p>
+          </div>
+          <div class="chat-create-group-row">
+            <div class="form-group">
+              <label class="form-label" for="chatGroupName">Tên nhóm chat mới</label>
+              <input id="chatGroupName" class="form-control" maxlength="160" placeholder="Ví dụ: Nhóm Nghiên cứu / Dự án cộng đồng">
+            </div>
+            <button type="button" class="btn btn-secondary" id="btnCreateChatGroup">Tạo nhóm với thành viên đã chọn</button>
+          </div>
+        </div>
+        <div class="chat-workspace-grid">
+          <section class="card chat-room-list-panel">
+            <div class="chat-panel-heading"><h3>Cuộc trò chuyện của bạn</h3><span class="chat-count">${rooms.length}</span></div>
+            ${rooms.length === 0 ? `<div class="chat-empty"><span aria-hidden="true">💬</span><strong>Chưa có cuộc trò chuyện</strong><p>Tìm người dùng để bắt đầu chat 1–1 hoặc tạo nhóm với thành viên đã chọn.</p></div>` : `
+              <div class="chat-room-list">
+                ${rooms.map(r => `
+                  <button type="button" class="chat-room-item ${r.id === activeRoomId ? 'active' : ''}" data-room-id="${esc(r.id)}">
+                    <span class="chat-room-avatar" aria-hidden="true">${r.room_type === 'direct' ? '1:1' : '👥'}</span>
+                    <span class="chat-room-summary"><strong>${esc(r.name || (r.room_type === 'direct' ? 'Trò chuyện riêng' : 'Nhóm chat'))}</strong><small>${r.room_type === 'direct' ? 'Trò chuyện riêng 1–1' : `Nhóm · ${Number(r.member_count || 1)} thành viên`} · ${Number(r.message_count || 0)} tin nhắn</small></span>
+                    <span class="chat-room-arrow" aria-hidden="true">›</span>
                   </button>
-                </li>
-              `).join('')}
-            </ul>
-          `}
+                `).join('')}
+              </div>
+            `}
+          </section>
+          <section class="card chat-conversation-panel" id="chatRoomMessagesPanel">
+            <div class="chat-empty chat-empty-large"><span aria-hidden="true">✉️</span><strong>Chọn một cuộc trò chuyện</strong><p>Tin nhắn sẽ hiển thị tại đây sau khi xác minh quyền thành viên.</p></div>
+          </section>
         </div>
-        <div class="card" id="chatRoomMessagesPanel">
-          <p>Chọn một phòng hội thoại để xem và gửi tin nhắn.</p>
-        </div>
-      </div>
+      </section>
     `;
 
-    document.getElementById('btnCreateChatRoom')?.addEventListener('click', async () => {
-      const name = window.prompt('Nhập tên phòng trao đổi chuyên môn:');
-      if (!name) return;
-      try {
-        await apiFetch('/api/chat/rooms', { method: 'POST', body: JSON.stringify({ name, room_type: 'group' }) });
-        showToast('Đã tạo phòng trao đổi mới trên D1!');
-        renderRoute();
-      } catch (err) {
-        showToast(err.message, true);
+    const getSelectedMembers = () => [...subVp.querySelectorAll('.chat-group-member-select:checked')].map(el => el.value);
+    const renderContactResults = contacts => {
+      const target = document.getElementById('chatContactsResults');
+      if (!target) return;
+      if (!contacts.length) {
+        target.innerHTML = '<p class="chat-helper">Không tìm thấy tài khoản đang hoạt động phù hợp. Thử tên hoặc mã thành viên khác.</p>';
+        return;
       }
-    });
+      target.innerHTML = `
+        <div class="chat-result-heading"><strong>Chọn người trò chuyện</strong><span>Chọn Chat 1–1 hoặc đánh dấu thành viên để tạo nhóm</span></div>
+        <div class="chat-contact-list">${contacts.map(c => `
+          <div class="chat-contact-row">
+            <span class="chat-contact-avatar" aria-hidden="true">${esc(String(c.full_name || '?').trim().slice(0,1).toUpperCase())}</span>
+            <div class="chat-contact-copy"><strong>${esc(c.full_name)}</strong><small>${esc(c.sfn_id || 'Thành viên')} · ${esc(c.role || 'member')}${c.department ? ` · ${esc(c.department)}` : ''}</small></div>
+            <label class="chat-select-for-group"><input class="chat-group-member-select" type="checkbox" value="${esc(c.id)}"> <span>Chọn nhóm</span></label>
+            <button type="button" class="btn btn-sm btn-primary" data-start-direct="${esc(c.id)}">Chat 1–1</button>
+          </div>
+        `).join('')}</div>
+      `;
+    };
+    const loadRooms = async () => {
+      const res = await apiFetch('/api/chat/rooms');
+      AppState.chatRooms = res.rooms || [];
+      renderRoute();
+    };
+    const openRoom = async roomId => {
+      AppState.activeChatRoomId = roomId;
+      const panel = document.getElementById('chatRoomMessagesPanel');
+      if (!panel) return;
+      panel.innerHTML = '<div class="chat-loading"><span class="page-state-spinner"></span><p>Đang tải hội thoại và kiểm tra thành viên...</p></div>';
+      try {
+        const room = AppState.chatRooms.find(r => r.id === roomId);
+        const [messageRes, memberRes] = await Promise.all([
+          apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`),
+          room?.room_type === 'group' ? apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/members`) : Promise.resolve({ members: [] })
+        ]);
+        AppState.activeChatMessages = messageRes.messages || [];
+        const members = memberRes.members || [];
+        panel.innerHTML = `
+          <header class="chat-conversation-header">
+            <div><span class="eyebrow">${room?.room_type === 'direct' ? 'TRÒ CHUYỆN RIÊNG' : 'NHÓM BẢO MẬT'}</span><h3>${esc(room?.name || 'Hội thoại')}</h3><p>${room?.room_type === 'direct' ? 'Cuộc trò chuyện riêng 1–1' : `${members.length} thành viên trong nhóm`}</p></div>
+            <button type="button" class="btn btn-sm btn-secondary" id="btnRefreshChat">Làm mới</button>
+          </header>
+          ${room?.room_type === 'group' ? `<div class="chat-members-panel"><div class="chat-panel-heading"><strong>Thành viên nhóm</strong><span>${members.length}</span></div><div class="chat-member-chips">${members.map(m => `<span class="chat-member-chip">${esc(m.full_name)} <small>${esc(m.role)}</small>${m.role !== 'owner' && AppState.currentUser?.id === room.created_by ? `<button type="button" aria-label="Xóa ${esc(m.full_name)} khỏi nhóm" data-remove-chat-member="${esc(m.user_id)}">×</button>` : ''}</span>`).join('')}</div><p class="chat-helper">Để thêm thành viên, tìm tài khoản ở phía trên, đánh dấu “Chọn nhóm”, rồi bấm “Thêm người đã chọn vào nhóm” bên dưới.</p><button type="button" class="btn btn-sm btn-secondary" id="btnAddMembersToRoom">Thêm người đã chọn vào nhóm</button></div>` : ''}
+          <div class="chat-message-list" id="chatMessageList">
+            ${AppState.activeChatMessages.length ? AppState.activeChatMessages.map(m => `<article class="chat-message"><div class="chat-message-meta"><strong>${esc(m.sender_name)}</strong><time>${esc(m.created_at || '')}</time></div><p>${esc(m.message_text)}</p></article>`).join('') : '<div class="chat-empty"><strong>Chưa có tin nhắn</strong><p>Gửi tin nhắn đầu tiên trong cuộc trò chuyện này.</p></div>'}
+          </div>
+          <form id="sendChatMsgForm" class="chat-compose-form">
+            <label class="sr-only" for="inpChatMsg">Nội dung tin nhắn</label>
+            <textarea id="inpChatMsg" class="form-control" rows="2" maxlength="5000" placeholder="Nhập tin nhắn…" required></textarea>
+            <button type="submit" class="btn btn-primary">Gửi tin nhắn</button>
+          </form>
+          <p class="chat-helper">Không gửi mật khẩu, token xác thực hoặc tài liệu nhạy cảm vào hội thoại không phù hợp.</p>
+        `;
+        document.getElementById('btnRefreshChat')?.addEventListener('click', () => openRoom(roomId));
+        document.getElementById('sendChatMsgForm')?.addEventListener('submit', async ev => {
+          ev.preventDefault();
+          const input = document.getElementById('inpChatMsg');
+          const submit = ev.currentTarget.querySelector('button[type="submit"]');
+          const message_text = input?.value?.trim();
+          if (!message_text) return;
+          submit.disabled = true;
+          try {
+            await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`, { method: 'POST', body: JSON.stringify({ message_text }) });
+            await openRoom(roomId);
+          } catch (err) {
+            showToast(err.message, true);
+            submit.disabled = false;
+          }
+        });
+        document.getElementById('btnAddMembersToRoom')?.addEventListener('click', async () => {
+          const ids = getSelectedMembers();
+          if (!ids.length) return showToast('Hãy tìm và chọn ít nhất một thành viên trước.', true);
+          try {
+            for (const user_id of ids) await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/members`, { method: 'POST', body: JSON.stringify({ user_id }) });
+            showToast('Đã cập nhật thành viên nhóm.');
+            await openRoom(roomId);
+            await loadRooms();
+          } catch (err) { showToast(err.message, true); }
+        });
+        panel.querySelectorAll('[data-remove-chat-member]').forEach(btn => btn.addEventListener('click', async () => {
+          const userId = btn.getAttribute('data-remove-chat-member');
+          if (!window.confirm('Xóa thành viên này khỏi nhóm?')) return;
+          try {
+            await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+            await openRoom(roomId); await loadRooms();
+          } catch (err) { showToast(err.message, true); }
+        }));
+        const messageList = document.getElementById('chatMessageList');
+        if (messageList) messageList.scrollTop = messageList.scrollHeight;
+      } catch (err) {
+        panel.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
+      }
+    };
 
-    subVp.querySelectorAll('.btn-open-room').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const roomId = btn.getAttribute('data-room-id');
-        const panel = document.getElementById('chatRoomMessagesPanel');
-        try {
-          const res = await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`);
-          const msgs = res.messages || [];
-          panel.innerHTML = `
-            <h3>Hội thoại</h3>
-            <div style="background:var(--bg-100);padding:12px;border-radius:8px;max-height:240px;overflow-y:auto;margin:10px 0;">
-              ${msgs.length === 0 ? '<p>Chưa có tin nhắn nào.</p>' : msgs.map(m => `
-                <div style="margin-bottom:8px;padding:8px;background:#fff;border-radius:6px;">
-                  <strong style="font-size:12px;color:var(--navy-800);">${esc(m.sender_name)}</strong>
-                  <div style="font-size:13.5px;">${esc(m.message_text)}</div>
-                </div>
-              `).join('')}
-            </div>
-            <form id="sendChatMsgForm" style="display:flex;gap:8px;">
-              <input id="inpChatMsg" class="form-control" placeholder="Nhập tin nhắn..." required>
-              <button type="submit" class="btn btn-primary btn-sm">Gửi</button>
-            </form>
-          `;
-          document.getElementById('sendChatMsgForm')?.addEventListener('submit', async ev => {
-            ev.preventDefault();
-            const txt = document.getElementById('inpChatMsg').value.trim();
-            if (!txt) return;
-            await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`, {
-              method: 'POST',
-              body: JSON.stringify({ message_text: txt })
-            });
-            btn.click();
-          });
-        } catch (err) {
-          panel.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
-        }
-      });
+    document.getElementById('btnFindChatContacts')?.addEventListener('click', async () => {
+      const q = document.getElementById('chatContactQuery')?.value?.trim() || '';
+      if (q.length < 2) return showToast('Nhập tối thiểu 2 ký tự để tìm người dùng.', true);
+      const target = document.getElementById('chatContactsResults');
+      target.innerHTML = '<p class="chat-helper">Đang tìm tài khoản…</p>';
+      try {
+        const res = await apiFetch(`/api/chat/contacts?q=${encodeURIComponent(q)}`);
+        renderContactResults(res.contacts || []);
+      } catch (err) { target.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`; }
     });
+    document.getElementById('chatContactQuery')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnFindChatContacts')?.click(); } });
+    subVp.querySelectorAll('[data-start-direct]').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const result = await apiFetch('/api/chat/rooms', { method: 'POST', body: JSON.stringify({ room_type: 'direct', target_user_id: btn.getAttribute('data-start-direct') }) });
+        const rooms = await apiFetch('/api/chat/rooms'); AppState.chatRooms = rooms.rooms || []; AppState.activeChatRoomId = result.id; renderRoute();
+      } catch (err) { showToast(err.message, true); btn.disabled = false; }
+    }));
+    document.getElementById('btnCreateChatGroup')?.addEventListener('click', async () => {
+      const name = document.getElementById('chatGroupName')?.value?.trim() || '';
+      const member_user_ids = getSelectedMembers();
+      if (name.length < 2) return showToast('Tên nhóm cần ít nhất 2 ký tự.', true);
+      if (!member_user_ids.length) return showToast('Tìm và chọn ít nhất một thành viên cho nhóm.', true);
+      const btn = document.getElementById('btnCreateChatGroup'); btn.disabled = true;
+      try {
+        const result = await apiFetch('/api/chat/rooms', { method: 'POST', body: JSON.stringify({ room_type: 'group', name, member_user_ids }) });
+        const rooms = await apiFetch('/api/chat/rooms'); AppState.chatRooms = rooms.rooms || []; AppState.activeChatRoomId = result.id; showToast('Đã tạo nhóm chat bảo mật.'); renderRoute();
+      } catch (err) { showToast(err.message, true); btn.disabled = false; }
+    });
+    subVp.querySelectorAll('.chat-room-item').forEach(btn => btn.addEventListener('click', () => openRoom(btn.getAttribute('data-room-id'))));
+    if (activeRoomId) openRoom(activeRoomId);
   }
 }
 

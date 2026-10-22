@@ -1,3 +1,5 @@
+> **Bản Full Repair 22/10/2026:** xem `FULL_REPAIR_REPORT_VI.md` để biết các thay đổi mới nhất, kết quả test và những phần chưa thể xác minh trên Cloudflare production. Báo cáo cũ bên dưới chỉ là lịch sử và không thay thế báo cáo này.
+
 # Sky First SCRD + EXAM — Source handover
 
 **Tên chính thức:** Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First  
@@ -13,14 +15,14 @@ Gói này chứa frontend SCRD, Cloudflare Worker backend, schema/migrations D1,
 - `public/` — giao diện SCRD và assets.
 - `backend_worker.js` — API Worker SCRD.
 - `d1_schema_migration.sql` — schema hợp nhất D1 dùng cho test/local.
-- `migrations/` — migration theo phiên bản: `0001_initial_schema.sql`, `0002_cleanup_unverified_content.sql`, `0003_home_about_longform.sql`.
+- `migrations/` — migration theo phiên bản: `0001_initial_schema.sql`, `0002_cleanup_unverified_content.sql`, `0003_home_about_longform.sql`, `0004_public_hero_copy_update.sql` (chỉ cập nhật các giá trị hero mặc định cũ, không ghi đè nội dung CMS đã chỉnh sửa).
 - `EXAM/` — Worker, giao diện và tests của Exam.
 - `tests/content-validation.mjs` — kiểm tra nội dung dài song ngữ của Trang chủ và Giới thiệu.
-- `tests/ui-regression.mjs` — kiểm tra các hợp đồng giao diện quan trọng: menu mobile, route, responsive CSS, link an toàn, trạng thái lỗi và giao diện Exam.
+- `tests/ui-regression.mjs` — kiểm tra các hợp đồng giao diện: menu/route, responsive, loại bỏ thanh kỹ thuật, hero, wizard đăng ký/điều khoản/chữ ký, hotline, chat quản trị và cấu hình Exam.
 - `UI_REFINEMENT_REPORT_VI.md` — ghi chú các thay đổi giao diện tổng thể và giới hạn kiểm chứng.
 - `tools/build_longform_content.py` — nguồn tạo nội dung/migration dài song ngữ có thể tái lập.
 - `CONTENT_WORDCOUNT_VI.md` — báo cáo đếm nội dung theo bộ đếm Unicode.
-- `TEST_REPORT_2026-10-22_VI.md` — kết quả kiểm thử và các giới hạn cần xác minh trước production.
+- `TEST_REPORT_2026-10-22_VI.md` — báo cáo kiểm thử ban đầu; báo cáo sửa chữa mới nhất và thay thế kết luận cũ là `FULL_REPAIR_REPORT_VI.md`.
 - `tests/smoke.mjs` — kiểm thử backend SCRD với SQLite/R2 giả lập.
 - `tests/integration.mjs` — kiểm thử SCRD ↔ Exam với cùng D1 giả lập.
 - `tests/d1_r2_runtime_server.mjs` — runtime adapter cho kiểm thử local.
@@ -38,7 +40,7 @@ Gói này chứa frontend SCRD, Cloudflare Worker backend, schema/migrations D1,
 npm run test
 ```
 
-Lệnh chạy kiểm tra cú pháp, 4 kiểm tra ngưỡng nội dung, 9 kiểm tra hồi quy giao diện, 14 kiểm thử SCRD, 5 kiểm thử tích hợp SCRD ↔ Exam và 31 kiểm thử Exam. Trong lần kiểm tra ngày 22/10/2026, tổng cộng 63 kiểm thử nội dung/giao diện/nghiệp vụ đạt. Đây là kiểm thử cục bộ, không thay thế kiểm thử trên Cloudflare production hay kiểm thử trình duyệt end-to-end đầy đủ.
+Lệnh chạy kiểm tra cú pháp, 4 kiểm tra ngưỡng nội dung, 17 kiểm tra hồi quy giao diện, 16 kiểm thử SCRD, 5 kiểm thử tích hợp SCRD ↔ Exam và 31 kiểm thử Exam. Lần kiểm thử bản Full Repair ngày 22/10/2026 đạt tổng cộng 73 kiểm tra nội dung/giao diện/nghiệp vụ (4 + 17 + 16 + 5 + 31); kiểm tra cú pháp cũng đạt. Đây là kiểm thử cục bộ, không thay thế kiểm thử trên Cloudflare production hay kiểm thử trình duyệt end-to-end đầy đủ.
 
 Có thể chạy riêng:
 
@@ -87,3 +89,10 @@ Không chạy deploy trước khi hoàn tất các bước xác minh. Các lện
 - Không dùng dữ liệu giả để đại diện cho đối tác, bài viết, dự án hoặc thành tích đã được xác nhận.
 - Tệp giấy tờ riêng tư phải được phục vụ qua backend có kiểm tra quyền; không công khai URL R2.
 - Mọi thông báo tiếp nhận hồ sơ chỉ xác nhận đã nhận, không đồng nghĩa hồ sơ đã được duyệt.
+
+
+## Lưu ý quan trọng khi cập nhật website đang chạy
+
+- Thư mục triển khai đúng là thư mục chứa trực tiếp `wrangler.toml`, `backend_worker.js`, `public/`, `migrations/` và `package.json` (`SCRD_UI_Release_20261022/` trong ZIP). Không deploy thư mục cha chứa thư mục này.
+- Trang HTML đã gắn cache-busting cho CSS/JS. Sau khi deploy, mở DevTools/Network hoặc tải cứng (Ctrl+F5) để xác nhận `app.js?v=20261022-full-repair-r1` và `styles.css?v=20261022-full-repair-r1` được tải.
+- Nếu website live vẫn hiện thẻ trạng thái D1/R2, liên kết Bootstrap trên header công khai, form đăng ký cũ chỉ có vài trường, hoặc số liệu dashboard không khớp dữ liệu thật, thì deployment đang phục vụ build/asset cũ hoặc cấu hình khác; ZIP này không thể tự thay đổi website live nếu chưa được deploy.

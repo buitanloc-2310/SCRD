@@ -57,6 +57,13 @@ try {
     const me = await call('/api/auth/me'); assert.equal(me.res.status, 200); assert.equal(me.data.user.role, 'super_admin'); assert.equal(me.data.csrf_token, csrf);
   });
 
+  await test('password recovery API no longer issues/reset tokens and provides the administrator hotline workflow', async () => {
+    const forgotten = await call('/api/auth/forgot-password', { method: 'POST', body: { email: 'admin@example.test' } });
+    assert.equal(forgotten.res.status, 410); assert.match(forgotten.data.error, /0924 910 210/);
+    const reset = await call('/api/auth/reset-password', { method: 'POST', body: { token: 'legacy-reset-token', password: 'Never-used-password123!' } });
+    assert.equal(reset.res.status, 410); assert.match(reset.data.error, /quản trị viên/i);
+  });
+
   let requestCode = '', requestId = '';
   await test('five-step account request validates and persists encrypted identity with unique code', async () => {
     const body = {
@@ -64,7 +71,8 @@ try {
       applicant_group: 'general', education_level: 'Đại học', institution_name: 'Đơn vị kiểm thử', major_or_field: 'Khoa học xã hội', current_occupation: 'Nghiên cứu viên',
       id_document_type: 'CCCD', id_number: '123456789012', id_issued_date: '2020-01-01', id_issued_place: 'Cục Cảnh sát quản lý hành chính',
       registration_purpose: 'Tham gia hoạt động nghiên cứu và phát triển cộng đồng.', research_or_project_interest: 'Nghiên cứu cộng đồng',
-      privacy_policy_accepted: true, terms_accepted: true, data_accuracy_confirmed: true
+      privacy_policy_accepted: true, terms_accepted: true, data_accuracy_confirmed: true,
+      signature_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR3kAAAAASUVORK5CYII='
     };
     const missingPhoto = await call('/api/account-requests', { method: 'POST', body });
     assert.equal(missingPhoto.res.status, 400, 'a submitted application must include a personal portrait');
@@ -79,6 +87,9 @@ try {
     assert.equal(res.status, 201, JSON.stringify(data)); requestCode = data.request_code; assert.match(requestCode, /^SCRD-SFN-\d{10}$/);
     const row = await DB.prepare('SELECT * FROM account_requests WHERE request_code=?').bind(requestCode).first();
     assert.ok(row.id_number_encrypted); assert.doesNotMatch(row.id_number_encrypted, /123456789012/); assert.equal(row.id_number_masked.slice(-4), '9012'); requestId = row.id;
+    assert.ok(row.signature_data && !row.signature_data.includes('data:image/png'), 'signature must be encrypted at rest');
+    const details = await call(`/api/admin/account-requests/${encodeURIComponent(requestId)}`);
+    assert.equal(details.res.status, 200, JSON.stringify(details.data)); assert.equal(details.data.signature_data, body.signature_data); assert.ok(details.data.portrait_media_id);
   });
 
   await test('public lookup returns only safe status data and never identity/guardian fields', async () => {
@@ -89,6 +100,24 @@ try {
   await test('public support ticket is recorded in D1', async () => {
     const { res, data } = await call('/api/public/support-tickets', { method: 'POST', body: { sender_name: 'Nguyen Test', sender_email: 'help@example.test', subject: 'Kiểm tra hệ thống', category: 'technical', message: 'Nội dung kiểm thử hệ thống đủ dài.' } });
     assert.equal(res.status, 201, JSON.stringify(data)); const row=await DB.prepare('SELECT id FROM support_requests WHERE ticket_code=?').bind(data.ticket_code).first(); assert.ok(row);
+  });
+
+  await test('private direct/group chat, member-only endpoints, user management and temporary password workflow', async () => {
+    await DB.prepare(`INSERT INTO users(id,sfn_id,email,password_hash,password_salt,full_name,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
+      .bind('chat-member-001','SFN-CHAT001','chat.member@example.test','legacy-placeholder-hash','','Chat Member','member').run();
+    const contacts=await call('/api/chat/contacts?q=Chat');assert.equal(contacts.res.status,200,JSON.stringify(contacts.data));assert.ok(contacts.data.contacts.some(x=>x.id==='chat-member-001'));assert.doesNotMatch(JSON.stringify(contacts.data.contacts),/chat.member@example.test/);
+    const direct=await call('/api/chat/rooms',{method:'POST',body:{room_type:'direct',target_user_id:'chat-member-001'}});assert.equal(direct.res.status,201,JSON.stringify(direct.data));
+    const directRooms=await call('/api/chat/rooms');assert.equal(directRooms.res.status,200);const directRoom=directRooms.data.rooms.find(x=>x.id===direct.data.id);assert.equal(directRoom.name,'Chat Member');assert.equal(directRoom.member_count,2);
+    const directMembers=await call(`/api/chat/rooms/${encodeURIComponent(direct.data.id)}/members`);assert.equal(directMembers.res.status,404,'direct rooms do not expose group membership manager');
+    const group=await call('/api/chat/rooms',{method:'POST',body:{room_type:'group',name:'Nhóm thử nghiệm bảo mật',member_user_ids:['chat-member-001']}});assert.equal(group.res.status,201,JSON.stringify(group.data));
+    const members=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/members`);assert.equal(members.res.status,200,JSON.stringify(members.data));assert.equal(members.data.members.length,2);
+    const msg=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/messages`,{method:'POST',body:{message_text:'Nội dung nhóm thử nghiệm'}});assert.equal(msg.res.status,201,JSON.stringify(msg.data));
+    const history=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/messages`);assert.equal(history.res.status,200);assert.equal(history.data.messages.length,1);
+    const users=await call('/api/admin/users');assert.equal(users.res.status,200,JSON.stringify(users.data));assert.ok(users.data.users.some(x=>x.id==='chat-member-001'));
+    const changed=await call('/api/admin/users/chat-member-001',{method:'PATCH',body:{role:'member',status:'suspended'}});assert.equal(changed.res.status,200,JSON.stringify(changed.data));
+    const temp=await call('/api/admin/users/chat-member-001/temporary-password',{method:'POST',body:{}});assert.equal(temp.res.status,200,JSON.stringify(temp.data));assert.ok(temp.data.temporary_password);assert.equal(temp.data.status,'active');
+    const activated=await DB.prepare('SELECT status,password_hash FROM users WHERE id=?').bind('chat-member-001').first();assert.equal(activated.status,'active');assert.match(activated.password_hash,/^pbkdf2_sha256\$210000\$/);
+    const memberLogin=await call('/api/auth/login',{method:'POST',body:{email:'chat.member@example.test',password:temp.data.temporary_password}});assert.equal(memberLogin.res.status,200,JSON.stringify(memberLogin.data));
   });
 
   await test('CMS page/post/menu/settings/redirect routes persist content and sanitize dangerous markup', async () => {
@@ -119,6 +148,8 @@ try {
   await test('private account uploads are not publicly accessible and image fields enforce image MIME', async () => {
     const bad = new FormData(); bad.set('file', new File(['not-an-image'], 'fake.txt', {type:'text/plain'})); bad.set('purpose','personal_photo');
     const denied=await call('/api/account-requests/upload',{method:'POST',form:bad}); assert.equal(denied.res.status,415,JSON.stringify(denied.data));
+    const idImage = new FormData(); idImage.set('file', new File([Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,0])], 'id.png', {type:'image/png'})); idImage.set('purpose','id_front');
+    const idRejected=await call('/api/account-requests/upload',{method:'POST',form:idImage}); assert.equal(idRejected.res.status,400,JSON.stringify(idRejected.data));
     const good = new FormData(); good.set('file', new File(['supporting document'], 'support.txt', {type:'text/plain'})); good.set('purpose','supporting_doc');
     const up=await call('/api/account-requests/upload',{method:'POST',form:good}); assert.equal(up.res.status,201,JSON.stringify(up.data));
     // The staging object must not be available to an anonymous caller even when its metadata ID is known.

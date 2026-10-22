@@ -1,3 +1,5 @@
+> **Ghi chú phiên bản:** báo cáo này ghi lại đợt chỉnh giao diện trước Full Repair. Xem `FULL_REPAIR_REPORT_VI.md` để biết thay đổi mới nhất và kết quả test hiện tại.
+
 # Báo cáo hoàn thiện giao diện tổng thể — SCRD + Exam
 
 Ngày thực hiện: 22/10/2026
