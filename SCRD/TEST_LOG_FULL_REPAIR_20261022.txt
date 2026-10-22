@@ -1,0 +1,159 @@
+
+> sky-first-scrd-exam-platform@1.0.0 test
+> npm run check && npm run test:migrations && npm run test:content && npm run test:ui && npm run test:scrd && npm run test:integration && npm run test:exam && npm run test:release
+
+
+> sky-first-scrd-exam-platform@1.0.0 check
+> node --check backend_worker.js && node --check public/app.js && node --check EXAM/src/index.js && node --check EXAM/public/api.js && node --check EXAM/public/core.js && node --check EXAM/public/storage.js && node --check EXAM/public/exam.js && node --check EXAM/functions/health.js && node --check tests/release-audit.mjs
+
+
+> sky-first-scrd-exam-platform@1.0.0 test:migrations
+> node tests/migration-chain.mjs
+
+MIGRATION CHAIN: 6/6 sequential SQL migrations PASS
+PASS: hero copy split into subtitle/description, CMS-authored content preserved, temporary-password guard defaults safely
+(node:13464) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> sky-first-scrd-exam-platform@1.0.0 test:content
+> node tests/content-validation.mjs
+
+PASS content tong-quan.content_vi: 6443 words/tokens
+PASS content tong-quan.content_en: 4181 words/tokens
+PASS content tong-quan: 190 unique paragraphs
+PASS content trang-chu-noi-dung.content_vi: 6428 words/tokens
+PASS content trang-chu-noi-dung.content_en: 4176 words/tokens
+PASS content trang-chu-noi-dung: 190 unique paragraphs
+CONTENT VALIDATION: 6/6 length/structure/uniqueness checks PASS
+(node:13487) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> sky-first-scrd-exam-platform@1.0.0 test:ui
+> node tests/ui-regression.mjs
+
+PASS UI 1: public shell includes a mobile navigation control connected accessibly to the menu
+PASS UI 2: public menu contains all required route seeds
+PASS UI 3: mobile layout rules reflow navigation, forms, grids and footer
+PASS UI 4: desktop/tablet layouts use fluid grid tracks instead of fixed 360px cards
+PASS UI 5: navigation links reject javascript/data protocols before rendering
+PASS UI 6: network errors use branded retry state and do not print backend error details in public UI
+PASS UI 7: Vietnamese and English controls and official support address remain present
+PASS UI 8: official logo asset exists and no generated hero image is required
+PASS UI 9: Exam portal has responsive UI refinements and reduced-motion support
+PASS UI 10: public header removes technical utility bar and account/CMS CTA buttons
+PASS UI 11: approved hero title and official Vietnamese/English summaries are in frontend defaults
+PASS UI 12: registration requires a portrait, visible terms, direct/upload signature and all three confirmations
+PASS UI 13: registration steps and step-five terms/signature have English translations
+PASS UI 14: forgot password directs to the published hotline instead of token reset flow
+PASS UI 15: private chat supports contact search, direct rooms, group members and membership-scoped messages
+PASS UI 16: protected admin pages include request detail review and user/role management
+PASS UI 17: Exam assets use a release-specific cache-busting version and approved SCRD origin
+PASS UI 18: temporary-password flow has forced-change screen, endpoint and schema migration
+PASS UI 19: chat file sharing is submitted with the message and server checks member-scoped media access
+PASS UI 20: hero supporting descriptions render independently and are editable through CMS settings
+PASS UI 21: admin settings deep link routes to CMS settings and keeps authentication/role checks
+PASS UI 22: temporary password UI does not claim to activate an account
+PASS UI 23: registration preview includes the portrait in Step 3 and the full review in Step 5
+PASS UI 24: registration submits an explicit allowlist and does not transmit local preview/legacy ID photo keys
+PASS UI 25: starting a second account application resets the previous applicant data and signature
+PASS UI 26: applicant-facing terms do not contain internal implementation notes
+PASS UI 27: homepage includes data-driven assessment, verified publication and verified partner blocks
+PASS UI 28: CMS includes a persisted homepage layout manager with ordering and visibility controls
+PASS UI 29: research, project and task admin UI provides edit/delete actions and safe task fields
+UI REGRESSION: 29/29 PASS
+
+> sky-first-scrd-exam-platform@1.0.0 test:scrd
+> node tests/smoke.mjs
+
+PASS 1: D1 schema loads and health checks return configured bindings
+PASS 2: public bootstrap data seeds approved navigation and bilingual pages without fake records
+PASS 3: one-time secure bootstrap creates the first admin and closes bootstrap
+PASS 4: login returns bearer and CSRF tokens, current-user API returns safe profile
+PASS 5: authenticated mutating APIs reject missing or incorrect CSRF tokens
+PASS 6: password recovery API no longer issues/reset tokens and provides the administrator hotline workflow
+PASS 7: five-step account request validates and persists encrypted identity with unique code
+PASS 8: public lookup returns only safe status data and never identity/guardian fields
+PASS 9: public support ticket is recorded in D1
+PASS 10: private direct/group chat, member-only endpoints, user management and temporary password workflow
+PASS 11: CMS page/post/menu/settings/redirect routes persist content and sanitize dangerous markup
+PASS 12: R2 public media upload and public download work through backend metadata
+PASS 13: private account uploads are not publicly accessible and image fields enforce image MIME
+PASS 14: reviewer workflow updates public status without exposing internal notes
+PASS 15: account approval, activation status, and administrator-issued temporary password stay synchronized
+PASS 16: research/project/task CRUD endpoints persist rows and update progress
+PASS 17: exam start creates launch token, returns exam-domain launch URL, and submit stores receipt
+PASS 18: route errors and unknown APIs never disclose internals
+SCRD WORKER + D1 SQLITE + R2 SMOKE: 18/18 PASS
+
+> sky-first-scrd-exam-platform@1.0.0 test:integration
+> node tests/integration.mjs
+
+PASS 1: SCRD first-admin bootstrap and authentication support real Exam launch
+PASS 2: one-time SCRD launch token redeems at EXAM and issues a short-lived access token
+PASS 3: Exam runtime reads attempt directly from shared D1 without exposing answers
+PASS 4: revisioned autosave and server-authoritative scoring/receipt work end-to-end
+PASS 5: Exam reports runtime health against shared schema
+SCRD ↔ EXAM INTEGRATION: 5/5 PASS
+
+> sky-first-scrd-exam-platform@1.0.0 test:exam
+> cd EXAM && node scripts/validate.mjs
+
+PASS runtime JavaScript syntax
+PASS UTC database dates independent from host timezone
+PASS legacy schedules use Vietnam timezone
+PASS clock handles unlimited, minutes, hours and elapsed deadline
+PASS all supported question types have correct progress status
+PASS partial matching and duplicate ordering are not complete
+PASS zero and false are meaningful answers
+PASS invalid exam and duplicate question IDs rejected
+PASS HTML escaping blocks injected markup
+PASS cache answers scoped to current questions
+PASS journal never acknowledges edits made during pending save
+PASS events deduplicated and legacy UI state excluded
+PASS invitation parsing supports direct, URL and SLCS links
+PASS API sends bearer token without session cookies
+PASS API preserves revision conflict details
+PASS API rejects successful HTML, null and array payloads
+PASS network errors distinguished from server rejection
+PASS session roundtrip includes candidate identity
+PASS local snapshot keeps revision and dirty edits
+PASS active tab lease cannot be taken by another owner
+PASS blocked browser storage has safe fallback
+PASS workstation renders all supported question types with escaped content
+PASS saving older payload cannot mark newer typing as saved
+PASS simultaneous autosaves share one request
+PASS server clock advances by monotonic performance time
+PASS completion respects hidden score policy
+PASS multilingual question content preserves per-question language and Unicode
+PASS rendered exam localizes an RTL audio question and displays the recorder controls
+PASS speaking runtime records only after an explicit microphone action
+PASS MediaRecorder audio containers require valid WebM/Ogg signatures
+PASS large candidate logo converted to a smaller WebP asset
+EXAM VALIDATION: 31/31 PASS
+
+> sky-first-scrd-exam-platform@1.0.0 test:release
+> node tests/release-audit.mjs
+
+PASS RELEASE 1: release contains SCRD, Exam, backend, migrations, tests and operator docs
+PASS RELEASE 2: public header is clean and contains only brand, VI/EN and eight-item navigation shell
+PASS RELEASE 3: public header renderer does not reconstruct technical utility or account/CMS CTA
+PASS RELEASE 4: hero defaults match the approved Vietnamese/English title, subtitle and description
+PASS RELEASE 5: registration, lookup, login and forgot-password have distinct URL routes, not header popovers
+PASS RELEASE 6: step 3 only uploads portrait/supporting document and backend rejects legacy ID-photo purposes
+PASS RELEASE 7: step 5 has readable terms, three separate confirmations, signature draw/upload and server validation
+PASS RELEASE 8: public lookup does not return sensitive identity or internal review fields
+PASS RELEASE 9: forgot-password is hotline guidance and legacy token endpoints are disabled
+PASS RELEASE 10: session, CSRF, role and forced-temporary-password checks remain server-side
+PASS RELEASE 11: chat messages, room membership and attachments are member-scoped in backend
+PASS RELEASE 12: unsubmitted account-upload staging files cannot be fetched even if metadata scope is accidentally public
+PASS RELEASE 13: low-entropy identity number is encrypted at rest and not stored as an unsalted hash
+PASS RELEASE 14: Exam source keeps server-controlled attempt/scoring integration and no answer leak in public view
+PASS RELEASE 15: security headers and SPA route fallbacks are present
+PASS RELEASE 16: release does not include secrets, local environment files, dependency trees or build caches
+PASS RELEASE 17: CMS has persisted home block ordering plus guarded CRUD for programs/tasks
+PASS RELEASE 18: static HTML/CSS assets resolve inside both SCRD and Exam packages
+PASS RELEASE 19: D1 name placeholders are explicitly documented rather than guessed
+RELEASE AUDIT: 19/19 PASS
+Release files inspected: 62
+Versioned migrations inspected: 6
+Note: these are local source/release checks, not production deployment or browser E2E proof.

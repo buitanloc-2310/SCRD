@@ -41,7 +41,7 @@ try {
     const { res, data } = await call('/api/public/bootstrap-data');
     assert.equal(res.status, 200); assert.ok(data.menus.length >= 8); assert.ok(data.pages.length >= 8);
     for (const pathName of ['/','/gioi-thieu','/nghien-cuu-khoa-hoc','/du-an-cong-dong','/khao-thi-danh-gia','/cong-bo-tai-lieu','/hop-tac-doi-tac','/tin-tuc-hoat-dong']) assert.ok(data.menus.some(x=>x.target_url===pathName), `missing menu ${pathName}`);
-    assert.equal(data.partners.length, 0); assert.equal(data.posts.length, 0);
+    assert.equal(data.partners.length, 0); assert.equal(data.posts.length, 0); assert.equal(data.settings.homepage_layout.length, 9, 'homepage layout defaults must include all public blocks');
   });
 
   await test('one-time secure bootstrap creates the first admin and closes bootstrap', async () => {
@@ -55,6 +55,19 @@ try {
     const login = await call('/api/auth/login', { method: 'POST', body: { email: 'admin@example.test', password: 'TestAdminPassword123!' } });
     assert.equal(login.res.status, 200, JSON.stringify(login.data)); token = login.data.token; csrf = login.data.csrf_token; assert.ok(token && csrf);
     const me = await call('/api/auth/me'); assert.equal(me.res.status, 200); assert.equal(me.data.user.role, 'super_admin'); assert.equal(me.data.csrf_token, csrf);
+  });
+
+  await test('authenticated mutating APIs reject missing or incorrect CSRF tokens', async () => {
+    const savedCsrf=csrf;
+    csrf='';
+    const noToken=await call('/api/cms/settings',{method:'POST',body:{settings:{hero_title_vi:'Must not be persisted'}}});
+    assert.equal(noToken.res.status,403,'mutations must reject a missing CSRF header');
+    csrf='not-the-real-csrf-token';
+    const wrongToken=await call('/api/cms/settings',{method:'POST',body:{settings:{hero_title_vi:'Must not be persisted'}}});
+    assert.equal(wrongToken.res.status,403,'mutations must reject a mismatched CSRF header');
+    csrf=savedCsrf;
+    const unchanged=await DB.prepare("SELECT config_value FROM system_config WHERE config_key='hero_title_vi'").first();
+    assert.notEqual(unchanged?.config_value,'Must not be persisted');
   });
 
   await test('password recovery API no longer issues/reset tokens and provides the administrator hotline workflow', async () => {
@@ -72,13 +85,25 @@ try {
       id_document_type: 'CCCD', id_number: '123456789012', id_issued_date: '2020-01-01', id_issued_place: 'Cục Cảnh sát quản lý hành chính',
       registration_purpose: 'Tham gia hoạt động nghiên cứu và phát triển cộng đồng.', research_or_project_interest: 'Nghiên cứu cộng đồng',
       privacy_policy_accepted: true, terms_accepted: true, data_accuracy_confirmed: true,
-      signature_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR3kAAAAASUVORK5CYII='
+      signature_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR3kAAAAASUVORK5CYII=',
+      id_front_r2_key: 'malicious/legacy-id-front-key', id_back_r2_key: 'malicious/legacy-id-back-key'
     };
+    const futureIssueDate = await call('/api/account-requests', { method: 'POST', body: { ...body, id_issued_date: '2999-01-01' } });
+    assert.equal(futureIssueDate.res.status, 400, 'document issue dates in the future must be rejected');
+    assert.match(futureIssueDate.data.error, /ngày cấp|hạn sử dụng/i);
+    const expiryBeforeIssue = await call('/api/account-requests', { method: 'POST', body: { ...body, id_expiry_date: '2019-01-01' } });
+    assert.equal(expiryBeforeIssue.res.status, 400, 'document expiry cannot precede issue date');
+    assert.match(expiryBeforeIssue.data.error, /ngày cấp|hạn sử dụng/i);
     const missingPhoto = await call('/api/account-requests', { method: 'POST', body });
     assert.equal(missingPhoto.res.status, 400, 'a submitted application must include a personal portrait');
     assert.equal((await DB.prepare('SELECT COUNT(*) n FROM account_requests').first()).n, 0, 'failed submissions must not create request records or issue codes');
+    const truncatedPortraitForm = new FormData();
+    truncatedPortraitForm.set('file', new File([Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,0])], 'truncated.png', { type: 'image/png' }));
+    truncatedPortraitForm.set('purpose', 'personal_photo');
+    const truncatedPortrait = await call('/api/account-requests/upload', { method: 'POST', form: truncatedPortraitForm });
+    assert.equal(truncatedPortrait.res.status,415,'a file that only carries a PNG header must be rejected');
     const portraitForm = new FormData();
-    portraitForm.set('file', new File([Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,0])], 'portrait.png', { type: 'image/png' }));
+    portraitForm.set('file', new File([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR3kAAAAASUVORK5CYII=','base64')], 'portrait.png', { type: 'image/png' }));
     portraitForm.set('purpose', 'personal_photo');
     const portraitUpload = await call('/api/account-requests/upload', { method: 'POST', form: portraitForm });
     assert.equal(portraitUpload.res.status, 201, JSON.stringify(portraitUpload.data));
@@ -86,10 +111,13 @@ try {
     const { res, data } = await call('/api/account-requests', { method: 'POST', body });
     assert.equal(res.status, 201, JSON.stringify(data)); requestCode = data.request_code; assert.match(requestCode, /^SCRD-SFN-\d{10}$/);
     const row = await DB.prepare('SELECT * FROM account_requests WHERE request_code=?').bind(requestCode).first();
-    assert.ok(row.id_number_encrypted); assert.doesNotMatch(row.id_number_encrypted, /123456789012/); assert.equal(row.id_number_masked.slice(-4), '9012'); requestId = row.id;
+    assert.ok(row.id_number_encrypted); assert.doesNotMatch(row.id_number_encrypted, /123456789012/); assert.equal(row.id_number_masked.slice(-4), '9012'); assert.equal(row.id_number_hash, null, 'do not persist a reversible-by-brute-force unsalted hash of a low-entropy ID number'); requestId = row.id;
+    assert.equal(row.id_front_r2_key,null,'legacy ID-document photo fields must never be accepted'); assert.equal(row.id_back_r2_key,null,'legacy ID-document photo fields must never be accepted');
     assert.ok(row.signature_data && !row.signature_data.includes('data:image/png'), 'signature must be encrypted at rest');
     const details = await call(`/api/admin/account-requests/${encodeURIComponent(requestId)}`);
     assert.equal(details.res.status, 200, JSON.stringify(details.data)); assert.equal(details.data.signature_data, body.signature_data); assert.ok(details.data.portrait_media_id);
+    const submittedPortrait = await call(`/api/media/${encodeURIComponent(details.data.portrait_media_id)}`);
+    assert.equal(submittedPortrait.res.status, 200, 'a submitted portrait must be available to an authorized reviewer');
   });
 
   await test('public lookup returns only safe status data and never identity/guardian fields', async () => {
@@ -112,12 +140,32 @@ try {
     const group=await call('/api/chat/rooms',{method:'POST',body:{room_type:'group',name:'Nhóm thử nghiệm bảo mật',member_user_ids:['chat-member-001']}});assert.equal(group.res.status,201,JSON.stringify(group.data));
     const members=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/members`);assert.equal(members.res.status,200,JSON.stringify(members.data));assert.equal(members.data.members.length,2);
     const msg=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/messages`,{method:'POST',body:{message_text:'Nội dung nhóm thử nghiệm'}});assert.equal(msg.res.status,201,JSON.stringify(msg.data));
-    const history=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/messages`);assert.equal(history.res.status,200);assert.equal(history.data.messages.length,1);
+    const attachmentForm=new FormData();attachmentForm.set('message_text','Tệp hướng dẫn cho nhóm');attachmentForm.set('file',new File(['chat attachment content'],'chat-notes.txt',{type:'text/plain'}));
+    const attach=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/messages`,{method:'POST',form:attachmentForm});assert.equal(attach.res.status,201,JSON.stringify(attach.data));assert.ok(attach.data.attachment_id);
+    const history=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/messages`);assert.equal(history.res.status,200);assert.equal(history.data.messages.length,2);const fileMessage=history.data.messages.find(x=>x.attachment);assert.equal(fileMessage.attachment.filename,'chat-notes.txt');assert.equal(fileMessage.attachment.mime_type,'text/plain');
+    const permittedFile=await call(`/api/media/${encodeURIComponent(fileMessage.attachment.id)}`);assert.equal(permittedFile.res.status,200);assert.match(String(permittedFile.data),/chat attachment content/);
+    const adminCredentials=await DB.prepare('SELECT password_hash,password_salt FROM users WHERE id=?').bind(adminId).first();
+    await DB.prepare(`INSERT INTO users(id,sfn_id,email,password_hash,password_salt,full_name,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,'member','active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`).bind('chat-outsider-001','SFN-OUTSIDER01','outsider@example.test',adminCredentials.password_hash,adminCredentials.password_salt,'Chat Outsider').run();
+    const adminTokenBeforeOutsider=token,adminCsrfBeforeOutsider=csrf;const outsiderLogin=await call('/api/auth/login',{method:'POST',body:{email:'outsider@example.test',password:'TestAdminPassword123!'}});assert.equal(outsiderLogin.res.status,200,JSON.stringify(outsiderLogin.data));token=outsiderLogin.data.token;csrf=outsiderLogin.data.csrf_token;
+    const deniedHistory=await call(`/api/chat/rooms/${encodeURIComponent(group.data.id)}/messages`);assert.equal(deniedHistory.res.status,403,'nonmember cannot read room history');
+    const deniedFile=await call(`/api/media/${encodeURIComponent(fileMessage.attachment.id)}`);assert.equal(deniedFile.res.status,403,'nonmember cannot download a private room attachment');token=adminTokenBeforeOutsider;csrf=adminCsrfBeforeOutsider;
     const users=await call('/api/admin/users');assert.equal(users.res.status,200,JSON.stringify(users.data));assert.ok(users.data.users.some(x=>x.id==='chat-member-001'));
+    const selfTemp=await call(`/api/admin/users/${encodeURIComponent(adminId)}/temporary-password`,{method:'POST',body:{}});assert.equal(selfTemp.res.status,409,'super admin cannot issue its own temporary password');
     const changed=await call('/api/admin/users/chat-member-001',{method:'PATCH',body:{role:'member',status:'suspended'}});assert.equal(changed.res.status,200,JSON.stringify(changed.data));
-    const temp=await call('/api/admin/users/chat-member-001/temporary-password',{method:'POST',body:{}});assert.equal(temp.res.status,200,JSON.stringify(temp.data));assert.ok(temp.data.temporary_password);assert.equal(temp.data.status,'active');
-    const activated=await DB.prepare('SELECT status,password_hash FROM users WHERE id=?').bind('chat-member-001').first();assert.equal(activated.status,'active');assert.match(activated.password_hash,/^pbkdf2_sha256\$210000\$/);
-    const memberLogin=await call('/api/auth/login',{method:'POST',body:{email:'chat.member@example.test',password:temp.data.temporary_password}});assert.equal(memberLogin.res.status,200,JSON.stringify(memberLogin.data));
+    const suspendedTemp=await call('/api/admin/users/chat-member-001/temporary-password',{method:'POST',body:{}});assert.equal(suspendedTemp.res.status,409,'password assistance must not silently reactivate suspended users');
+    const stillSuspended=await DB.prepare('SELECT status FROM users WHERE id=?').bind('chat-member-001').first();assert.equal(stillSuspended.status,'suspended');
+    const activeAgain=await call('/api/admin/users/chat-member-001',{method:'PATCH',body:{role:'member',status:'active'}});assert.equal(activeAgain.res.status,200,JSON.stringify(activeAgain.data));
+    const temp=await call('/api/admin/users/chat-member-001/temporary-password',{method:'POST',body:{}});assert.equal(temp.res.status,200,JSON.stringify(temp.data));assert.ok(temp.data.temporary_password);assert.equal(temp.data.status,'active');assert.equal(temp.data.must_change_password,true);
+    const activated=await DB.prepare('SELECT status,password_hash,must_change_password FROM users WHERE id=?').bind('chat-member-001').first();assert.equal(activated.status,'active');assert.equal(activated.must_change_password,1);assert.match(activated.password_hash,/^pbkdf2_sha256\$210000\$/);
+    const memberLogin=await call('/api/auth/login',{method:'POST',body:{email:'chat.member@example.test',password:temp.data.temporary_password}});assert.equal(memberLogin.res.status,200,JSON.stringify(memberLogin.data));assert.equal(memberLogin.data.user.must_change_password,true);
+    const adminTokenBeforeMember=token,adminCsrfBeforeMember=csrf;token=memberLogin.data.token;csrf=memberLogin.data.csrf_token;
+    const forcedBlocked=await call('/api/dashboard/overview');assert.equal(forcedBlocked.res.status,428,'temporary password must block protected APIs');
+    const changedPassword=await call('/api/auth/change-password',{method:'POST',body:{current_password:temp.data.temporary_password,new_password:'ChangedMemberPassword123!',confirm_password:'ChangedMemberPassword123!'}});assert.equal(changedPassword.res.status,200,JSON.stringify(changedPassword.data));
+    const memberMe=await call('/api/auth/me');assert.equal(memberMe.res.status,200);assert.equal(memberMe.data.user.must_change_password,false);
+    const afterChangeProtected=await call('/api/dashboard/overview');assert.equal(afterChangeProtected.res.status,200,JSON.stringify(afterChangeProtected.data));
+    const oldTempLogin=await call('/api/auth/login',{method:'POST',body:{email:'chat.member@example.test',password:temp.data.temporary_password}});assert.equal(oldTempLogin.res.status,401,'old temporary password is invalid after change');
+    const newMemberLogin=await call('/api/auth/login',{method:'POST',body:{email:'chat.member@example.test',password:'ChangedMemberPassword123!'}});assert.equal(newMemberLogin.res.status,200);assert.equal(newMemberLogin.data.user.must_change_password,false);
+    token=adminTokenBeforeMember;csrf=adminCsrfBeforeMember;
   });
 
   await test('CMS page/post/menu/settings/redirect routes persist content and sanitize dangerous markup', async () => {
@@ -134,6 +182,11 @@ try {
     const deletePage = await call(`/api/cms/pages/${encodeURIComponent(page.data.id)}`, { method: 'DELETE' }); assert.equal(deletePage.res.status, 200, JSON.stringify(deletePage.data)); assert.equal(await DB.prepare('SELECT id FROM cms_pages WHERE slug=?').bind('smoke-page').first(), null);
     const menu = await call('/api/cms/menus', { method: 'POST', body: { menu_location: 'main_header', label_vi: 'Menu kiểm thử', label_en: 'Test menu', target_url: '/kiem-thu', sort_order: 99, is_visible: true } }); assert.equal(menu.res.status, 200, JSON.stringify(menu.data));
     const setting = await call('/api/cms/settings', { method: 'POST', body: { settings: { hero_title_vi: 'Tiêu đề đã cập nhật', unsafe_unapproved_key: 'ignored' } } }); assert.equal(setting.res.status, 200); assert.ok(setting.data.saved.includes('hero_title_vi')); assert.ok(!setting.data.saved.includes('unsafe_unapproved_key'));
+    const layout=[{id:'hero',enabled:true,order:1},{id:'news',enabled:true,order:2},{id:'pillars',enabled:false,order:3},{id:'programs',enabled:true,order:4},{id:'assessments',enabled:true,order:5},{id:'publications',enabled:true,order:6},{id:'partners',enabled:true,order:7},{id:'cooperation',enabled:true,order:8},{id:'longform',enabled:true,order:9}];
+    const savedLayout=await call('/api/cms/settings',{method:'POST',body:{settings:{homepage_layout:layout}}});assert.equal(savedLayout.res.status,200,JSON.stringify(savedLayout.data));assert.ok(savedLayout.data.saved.includes('homepage_layout'));
+    const storedLayout=JSON.parse((await DB.prepare("SELECT config_value FROM system_config WHERE config_key='homepage_layout'").first()).config_value);assert.equal(storedLayout[1].id,'news');assert.equal(storedLayout[2].enabled,false);
+    const badLayout=await call('/api/cms/settings',{method:'POST',body:{settings:{homepage_layout:layout.map((x,i)=>i===1?{...x,id:'hero'}:x)}}});assert.equal(badLayout.res.status,400,'invalid duplicate layout blocks must be rejected');
+    const heroMoved=await call('/api/cms/settings',{method:'POST',body:{settings:{homepage_layout:[...layout.slice(1),layout[0]]}}});assert.equal(heroMoved.res.status,400,'hero must remain first');
     const redir = await call('/api/cms/redirects', { method: 'POST', body: { old_path: '/duong-cu-kiem-thu', new_path: '/gioi-thieu', status_code: 301 } }); assert.equal(redir.res.status, 200, JSON.stringify(redir.data));
     const pageRows=await DB.prepare('SELECT COUNT(*) n FROM cms_pages WHERE slug=?').bind('smoke-page').first(); assert.equal(pageRows.n,0, 'deleted CMS page must be removed from D1');
   });
@@ -153,10 +206,17 @@ try {
     const good = new FormData(); good.set('file', new File(['supporting document'], 'support.txt', {type:'text/plain'})); good.set('purpose','supporting_doc');
     const up=await call('/api/account-requests/upload',{method:'POST',form:good}); assert.equal(up.res.status,201,JSON.stringify(up.data));
     // The staging object must not be available to an anonymous caller even when its metadata ID is known.
-    token=''; csrf=''; const blocked=await call(`/api/media/${encodeURIComponent(up.data.id)}`); assert.equal(blocked.res.status,401);
+    token=''; csrf='';
+    const blocked=await call(`/api/media/${encodeURIComponent(up.data.id)}`); assert.equal(blocked.res.status,404,'unattached staging object should be indistinguishable from a missing file');
+    // Even an accidental/public metadata-scope change must not publish an unattached staging object.
+    await DB.prepare("UPDATE r2_files SET access_scope='public' WHERE id=?").bind(up.data.id).run();
+    const misconfiguredPublic=await call(`/api/media/${encodeURIComponent(up.data.id)}`);
+    assert.equal(misconfiguredPublic.res.status,404,'staging guard must run before the public-scope check');
+    await DB.prepare("UPDATE r2_files SET access_scope='identity_private' WHERE id=?").bind(up.data.id).run();
     // Restore admin session after verifying private access control.
     const login=await call('/api/auth/login',{method:'POST',body:{email:'admin@example.test',password:'TestAdminPassword123!'}});assert.equal(login.res.status,200);token=login.data.token;csrf=login.data.csrf_token;
-    const allowed=await call(`/api/media/${encodeURIComponent(up.data.id)}`);assert.equal(allowed.res.status,200);
+    const deniedStagingReviewer=await call(`/api/media/${encodeURIComponent(up.data.id)}`);
+    assert.equal(deniedStagingReviewer.res.status,404,'reviewers must not read unattached staging uploads before submission');
   });
 
   await test('reviewer workflow updates public status without exposing internal notes', async () => {
@@ -165,13 +225,39 @@ try {
     const lookup=await call('/api/account-requests/lookup',{method:'POST',body:{request_code:requestCode,email:'applicant@example.test'}});assert.equal(lookup.res.status,200);assert.equal(lookup.data.request.status,'Đang xem xét');assert.doesNotMatch(JSON.stringify(lookup.data),/Nội bộ test/);
   });
 
+  await test('account approval, activation status, and administrator-issued temporary password stay synchronized', async () => {
+    const approved = await call('/api/admin/account-requests/review', { method: 'POST', body: { request_id: requestId, new_status: 'Đã duyệt', review_notes_public: 'Hồ sơ đủ điều kiện.' } });
+    assert.equal(approved.res.status, 200, JSON.stringify(approved.data));
+    const approvedUserId = approved.data.approved_user_id;
+    assert.ok(approvedUserId, 'approved request must be linked to the created user');
+    assert.equal((await DB.prepare('SELECT status FROM users WHERE id=?').bind(approvedUserId).first()).status, 'pending');
+    const activated = await call('/api/admin/account-requests/review', { method: 'POST', body: { request_id: requestId, new_status: 'Đã kích hoạt tài khoản', review_notes_public: 'Vui lòng liên hệ quản trị viên để nhận thông tin truy cập an toàn.' } });
+    assert.equal(activated.res.status, 200, JSON.stringify(activated.data));
+    assert.equal((await DB.prepare('SELECT status FROM users WHERE id=?').bind(approvedUserId).first()).status, 'active');
+    assert.equal((await DB.prepare('SELECT status FROM account_requests WHERE id=?').bind(requestId).first()).status, 'Đã kích hoạt tài khoản');
+    const temp = await call(`/api/admin/users/${encodeURIComponent(approvedUserId)}/temporary-password`, { method: 'POST', body: {} });
+    assert.equal(temp.res.status, 200, JSON.stringify(temp.data));
+    assert.equal(temp.data.must_change_password, true);
+    assert.equal((await DB.prepare('SELECT must_change_password FROM users WHERE id=?').bind(approvedUserId).first()).must_change_password, 1);
+  });
+
   await test('research/project/task CRUD endpoints persist rows and update progress', async () => {
     const research=await call('/api/research',{method:'POST',body:{title_vi:'Nghiên cứu thử',title_en:'Test research',code:'TEST-R1',slug:'test-r1',summary_vi:'Tóm tắt kiểm thử',summary_en:'Test summary',status:'Đề xuất',is_public:true}});
     assert.equal(research.res.status,200,JSON.stringify(research.data));
     const project=await call('/api/projects',{method:'POST',body:{title_vi:'Dự án thử',title_en:'Test project',code:'TEST-P1',slug:'test-p1',summary_vi:'Tóm tắt',summary_en:'Summary',status:'Đang thực hiện',is_public:true}});
     assert.equal(project.res.status,200,JSON.stringify(project.data));
+    const orphanTask=await call('/api/tasks',{method:'POST',body:{parent_type:'research',parent_id:'NO-SUCH-PROGRAM',title:'Không được tạo',status:'completed',weight:1}});
+    assert.equal(orphanTask.res.status,404,'tasks must reference an existing program');
+    const invalidWeight=await call('/api/tasks',{method:'POST',body:{parent_type:'research',parent_id:research.data.id,title:'Trọng số sai',status:'completed',weight:1001}});
+    assert.equal(invalidWeight.res.status,400,'task weight must be bounded');
     const task=await call('/api/tasks',{method:'POST',body:{parent_type:'research',parent_id:research.data.id,title:'Nhiệm vụ thử',status:'completed',weight:1}});
     assert.equal(task.res.status,200,JSON.stringify(task.data)); assert.equal(task.data.parent_progress_percent,100);
+    const blockedDelete=await call(`/api/research/${encodeURIComponent(research.data.id)}`,{method:'DELETE'});assert.equal(blockedDelete.res.status,409,'program deletion must be blocked while tasks are linked');
+    const taskUpdate=await call('/api/tasks',{method:'POST',body:{id:task.data.id,parent_type:'research',parent_id:research.data.id,title:'Nhiệm vụ đã sửa',status:'todo',weight:2}});
+    assert.equal(taskUpdate.res.status,200);assert.equal(taskUpdate.data.parent_progress_percent,0,'task update must recalculate progress');
+    const taskDelete=await call(`/api/tasks/${encodeURIComponent(task.data.id)}`,{method:'DELETE'});assert.equal(taskDelete.res.status,200);assert.equal(taskDelete.data.parent_progress_percent,0);
+    const researchDelete=await call(`/api/research/${encodeURIComponent(research.data.id)}`,{method:'DELETE'});assert.equal(researchDelete.res.status,200,JSON.stringify(researchDelete.data));
+    const projectDelete=await call(`/api/projects/${encodeURIComponent(project.data.id)}`,{method:'DELETE'});assert.equal(projectDelete.res.status,200,JSON.stringify(projectDelete.data));
   });
 
   await test('exam start creates launch token, returns exam-domain launch URL, and submit stores receipt', async () => {

@@ -1,98 +1,137 @@
-> **Bản Full Repair 22/10/2026:** xem `FULL_REPAIR_REPORT_VI.md` để biết các thay đổi mới nhất, kết quả test và những phần chưa thể xác minh trên Cloudflare production. Báo cáo cũ bên dưới chỉ là lịch sử và không thay thế báo cáo này.
-
-# Sky First SCRD + EXAM — Source handover
+# Sky First SCRD + Exam — Source Handover
 
 **Tên chính thức:** Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First  
 **English:** Sky First Center for Research and Development  
-**SCRD:** https://scrd.skyfirst.io.vn  
-**Exam:** https://exam.skyfirst.io.vn  
-**Hỗ trợ:** support@skyfirst.io.vn
+**SCRD:** `https://scrd.skyfirst.io.vn`  
+**Exam:** `https://exam.skyfirst.io.vn`  
+**Hỗ trợ:** `support@skyfirst.io.vn`  
+**Hotline hướng dẫn quên mật khẩu:** `0924 910 210`
 
-Gói này chứa frontend SCRD, Cloudflare Worker backend, schema/migrations D1, cấu hình triển khai, tests và source Exam. Các bài test cục bộ sử dụng SQLite tạm thời và R2 giả lập; chúng không truy cập hoặc thay đổi production Cloudflare.
+Gói này chứa mã nguồn SCRD, Cloudflare Worker backend, D1 schema/migrations, cấu hình triển khai, test local và source Exam. Đây là bản mã nguồn đã sửa; **không đồng nghĩa website production đã được triển khai**.
 
-## Cấu trúc
+## 1. Tài liệu cần đọc
 
-- `public/` — giao diện SCRD và assets.
-- `backend_worker.js` — API Worker SCRD.
-- `d1_schema_migration.sql` — schema hợp nhất D1 dùng cho test/local.
-- `migrations/` — migration theo phiên bản: `0001_initial_schema.sql`, `0002_cleanup_unverified_content.sql`, `0003_home_about_longform.sql`, `0004_public_hero_copy_update.sql` (chỉ cập nhật các giá trị hero mặc định cũ, không ghi đè nội dung CMS đã chỉnh sửa).
-- `EXAM/` — Worker, giao diện và tests của Exam.
-- `tests/content-validation.mjs` — kiểm tra nội dung dài song ngữ của Trang chủ và Giới thiệu.
-- `tests/ui-regression.mjs` — kiểm tra các hợp đồng giao diện: menu/route, responsive, loại bỏ thanh kỹ thuật, hero, wizard đăng ký/điều khoản/chữ ký, hotline, chat quản trị và cấu hình Exam.
-- `UI_REFINEMENT_REPORT_VI.md` — ghi chú các thay đổi giao diện tổng thể và giới hạn kiểm chứng.
-- `tools/build_longform_content.py` — nguồn tạo nội dung/migration dài song ngữ có thể tái lập.
-- `CONTENT_WORDCOUNT_VI.md` — báo cáo đếm nội dung theo bộ đếm Unicode.
-- `TEST_REPORT_2026-10-22_VI.md` — báo cáo kiểm thử ban đầu; báo cáo sửa chữa mới nhất và thay thế kết luận cũ là `FULL_REPAIR_REPORT_VI.md`.
-- `tests/smoke.mjs` — kiểm thử backend SCRD với SQLite/R2 giả lập.
-- `tests/integration.mjs` — kiểm thử SCRD ↔ Exam với cùng D1 giả lập.
-- `tests/d1_r2_runtime_server.mjs` — runtime adapter cho kiểm thử local.
-- `SECURITY_AUDIT_VI.md` — giới hạn, kiểm soát bảo mật và các bước cần xác minh trước production.
+- `SUPER_COMPREHENSIVE_AUDIT_VI.md` — báo cáo tổng hợp mới nhất, thay đổi sâu, kiểm thử và giới hạn.
+- `RELEASE_BUILD_INFO.md`, `RELEASE_MANIFEST.json`, `RELEASE_FILE_HASHES_SHA256.txt` — thông tin build và kiểm tra toàn vẹn file.
+- `REQUIREMENT_TRACEABILITY_12_PARTS_VI.md` — truy vết từng yêu cầu trong 12 phần tới mã nguồn/test/giới hạn.
+- `FULL_REPAIR_REPORT_VI.md` — báo cáo sửa chữa chi tiết.
+- `CHANGELOG_SUPER_COMPREHENSIVE_VI.md` — lịch sử thay đổi của bản Super Comprehensive Repair.
+- `SCRD_EXAM_RELEASE_CHECKLIST_12_PARTS_VI.md` — checklist 12 phần, phân biệt test local và nghiệm thu production.
+- `SECURITY_AUDIT_VI.md` — các kiểm soát, giới hạn và việc cần xác minh bảo mật.
+- `UI_REFINEMENT_REPORT_VI.md` — thay đổi giao diện/UX có trong source.
+- `TEST_REPORT_2026-10-22_VI.md` — kết quả test mới nhất và phạm vi test.
+- `TEST_LOG_FULL_REPAIR_20261022.txt` và `TEST_LOG_SUPER_COMPREHENSIVE_20261022.txt` — log chi tiết từ các lần chạy `npm test`.
+- `CONTENT_WORDCOUNT_VI.md` — cách đếm nội dung dài VI/EN và giới hạn bộ đếm.
 
-## Yêu cầu môi trường local
+## 2. Cấu trúc chính
 
-- Node.js 22+ khuyến nghị (có hỗ trợ `node:sqlite` cho test Exam).
-- Python 3 để chạy SQLite bridge trong smoke tests.
-- Wrangler 4.34.0 được gọi qua `npx` trong các lệnh tiện ích.
+- `public/` — HTML, JavaScript, CSS và assets SCRD.
+- `backend_worker.js` — Worker API SCRD.
+- `d1_schema_migration.sql` — schema hợp nhất dùng cho kiểm thử local.
+- `migrations/` — migration D1 theo thứ tự 0001–0006.
+- `tests/` — migration-chain, content validation, UI regression, SCRD smoke, integration và release audit.
+- `EXAM/` — Worker, giao diện, API client, storage logic, configuration và validation của Exam.
+- `tools/build_longform_content.py` — script tạo nội dung dài/migration theo source có sẵn.
 
-## Kiểm thử
+## 3. Yêu cầu kiểm thử cục bộ
+
+- Node.js phiên bản hỗ trợ `node:sqlite` (Node.js 22+ được khuyến nghị).
+- Python 3 cho SQLite bridge trong smoke tests.
+- Wrangler 4.34.0 được dùng trong các lệnh tiện ích/deploy; test local không cần quyền Cloudflare.
+
+Chạy bộ test:
 
 ```bash
-npm run test
+npm test
 ```
 
-Lệnh chạy kiểm tra cú pháp, 4 kiểm tra ngưỡng nội dung, 17 kiểm tra hồi quy giao diện, 16 kiểm thử SCRD, 5 kiểm thử tích hợp SCRD ↔ Exam và 31 kiểm thử Exam. Lần kiểm thử bản Full Repair ngày 22/10/2026 đạt tổng cộng 73 kiểm tra nội dung/giao diện/nghiệp vụ (4 + 17 + 16 + 5 + 31); kiểm tra cú pháp cũng đạt. Đây là kiểm thử cục bộ, không thay thế kiểm thử trên Cloudflare production hay kiểm thử trình duyệt end-to-end đầy đủ.
+Kết quả bản source hiện tại:
 
-Có thể chạy riêng:
+| Nhóm | Kết quả |
+|---|---:|
+| Syntax check | Đạt |
+| Chuỗi migration | 6/6 |
+| Nội dung VI/EN: ngưỡng + cấu trúc/không lặp | 6/6 |
+| Hồi quy UI | 29/29 |
+| SCRD backend + SQLite/D1 giả lập + R2 giả lập | 18/18 |
+| SCRD ↔ Exam integration | 5/5 |
+| Exam validation | 31/31 |
+| Release audit | 19/19 |
+| **Tổng nội dung/UI/nghiệp vụ** | **89/89** |
+| **Tổng cộng gồm release audit** | **108/108** |
+
+Các kiểm tra UI chủ yếu là kiểm tra hợp đồng source/static. Smoke/integration test dùng SQLite và R2 giả lập. 108 là tổng các kiểm tra tự động được đếm theo nhóm, không phải 108 bài E2E trên trình duyệt hoặc bằng chứng production.
+
+Chạy riêng:
 
 ```bash
+npm run test:migrations
+npm run test:content
 npm run test:ui
 npm run test:scrd
 npm run test:integration
 npm run test:exam
+npm run test:release
 ```
 
-## Chuẩn bị Cloudflare
+## 4. Migrations
 
-1. Mở Cloudflare Dashboard → Workers & Pages → D1 và xác minh database có ID `6006fe24-6278-4989-8d94-fd4734d71679`.
-2. Thay `REPLACE_WITH_ACTUAL_D1_DATABASE_NAME` trong `wrangler.toml` bằng **tên chính xác** từ Dashboard. Không đoán tên database.
-3. Xác nhận binding `DB` và bucket R2 `scrd-files` (binding `FILES`) tồn tại trong đúng account/environment.
-4. Sao lưu production D1 trước khi chạy migration. Đối chiếu các migration hiện có; không chạy lại schema tùy tiện trên production.
-5. Xác nhận thư mục migration theo thứ tự. Với D1 đã tồn tại, xem lịch sử migration và chỉ áp dụng migration chưa chạy. Không chạy lại `0001_initial_schema.sql` một cách mù quáng trên production. `0003_home_about_longform.sql` bổ sung nội dung dài song ngữ cho trang chủ và Giới thiệu. Thử trên staging và đối chiếu schema trước khi áp dụng lên production.
-6. Cấu hình secrets cho Worker SCRD:
+Thứ tự migration:
 
-```bash
-npx wrangler@4.34.0 secret put BOOTSTRAP_SECRET_TOKEN --config wrangler.toml
-npx wrangler@4.34.0 secret put ID_ENCRYPTION_KEY --config wrangler.toml
-```
+1. `0001_initial_schema.sql`
+2. `0002_cleanup_unverified_content.sql`
+3. `0003_home_about_longform.sql`
+4. `0004_public_hero_copy_update.sql`
+5. `0005_temporary_password_guard.sql`
+6. `0006_hero_description_split.sql`
 
-`BOOTSTRAP_SECRET_TOKEN` phải là giá trị ngẫu nhiên mạnh dùng một lần cho bootstrap đầu tiên. `ID_ENCRYPTION_KEY` phải là khóa bí mật mạnh và được bảo quản an toàn; mất khóa có thể khiến dữ liệu định danh đã mã hóa không giải mã được. Không dùng giá trị test trong production.
+Migration 0005 bổ sung cờ `must_change_password` cho luồng mật khẩu tạm thời. Migration 0006 tách subtitle và description hero; chỉ điều chỉnh giá trị mặc định đã biết, không cố ý ghi đè nội dung CMS tùy chỉnh. Migration-chain test đã được chạy trên schema thử nghiệm theo đúng thứ tự.
 
-7. Kiểm tra cấu hình D1 của Exam trong `EXAM/wrangler.json`: `database_id` được khai báo theo yêu cầu nhưng `database_name` cũng cần khớp tên thực tế. Cấu hình `CONTROL_ORIGIN` phải là domain SCRD đúng.
-8. Cấu hình secrets cần thiết cho Exam/email nếu có, kiểm tra DNS/custom domain và CORS trước khi triển khai.
-9. Triển khai staging trước; chạy `/api/health` của SCRD và `/health` của Exam, rồi kiểm tra đăng ký, tra cứu, CMS, upload riêng tư và một lượt thi thử bằng tài khoản thử nghiệm.
-10. Chỉ chuyển production sau khi xác nhận backup/rollback, domain, secrets, migration và phân quyền trên Cloudflare thật.
+**Không chạy lại toàn bộ migration một cách mù quáng trên production.** Trước khi thực hiện, sao lưu D1, kiểm tra migration history/schema và chỉ áp dụng migration còn thiếu. Thử trên staging trước và chuẩn bị rollback.
 
-## Triển khai
+## 5. Cấu hình Cloudflare cần xác nhận
 
-Sau khi đã sửa tên database và cấu hình secrets/bindings thật:
+- Trong `wrangler.toml`, thay `REPLACE_WITH_ACTUAL_D1_DATABASE_NAME` bằng tên chính xác lấy từ Cloudflare Dashboard.
+- Trong `EXAM/wrangler.json`, thay `CONFIRM_ACTUAL_D1_DATABASE_NAME` bằng tên chính xác cho database/binding được dùng.
+- Xác minh D1 ID `6006fe24-6278-4989-8d94-fd4734d71679` có đúng là database của dự án/môi trường đang triển khai.
+- Xác minh binding `DB` và bucket R2 `scrd-files` qua binding `FILES` trong đúng account/environment.
+- Xác minh các secrets như `BOOTSTRAP_SECRET_TOKEN`, `ID_ENCRYPTION_KEY` và cấu hình Exam/email. Không dùng giá trị test, không điền secrets thật vào ZIP hoặc Git.
+- Xác minh `CONTROL_ORIGIN`, CORS, security headers, DNS và custom domain.
+
+Các placeholder không được đoán hoặc thay bằng tên tùy ý.
+
+## 6. Triển khai — chỉ thực hiện bởi người có quyền
+
+Bản này **chưa được deploy lên production**. Trước khi triển khai:
+
+1. Xác nhận repository/project và môi trường đích.
+2. Sao lưu D1 và lưu lại migration history/schema hiện tại.
+3. Kiểm tra cấu hình database name/bindings, R2, secrets, origin và domain.
+4. Chạy migration còn thiếu trên staging, không chạy lại migration đã áp dụng.
+5. Kiểm thử đầy đủ đăng ký, xét duyệt, mật khẩu tạm thời, media riêng tư, CMS, chat và Exam.
+6. Kiểm tra desktop/mobile bằng trình duyệt, xác nhận asset release version và có kế hoạch rollback.
+7. Chỉ chuyển production sau khi staging và quyền truy cập đã được xác minh.
+
+Lệnh deploy hiện có trong package scripts:
 
 ```bash
 npm run deploy:scrd
 npm run deploy:exam
 ```
 
-Không chạy deploy trước khi hoàn tất các bước xác minh. Các lệnh deploy không tự tạo database, bucket, secrets, DNS hay quyền Cloudflare.
+Không chạy các lệnh trên trước khi hoàn thành toàn bộ bước xác nhận. Các lệnh không tự tạo D1/R2, secrets, DNS hoặc phân quyền Cloudflare.
 
-## Lưu ý dữ liệu và quyền riêng tư
+## 7. Các giới hạn đã biết
 
-- Không commit secrets hoặc dữ liệu người dùng thật.
-- Không dùng dữ liệu giả để đại diện cho đối tác, bài viết, dự án hoặc thành tích đã được xác nhận.
-- Tệp giấy tờ riêng tư phải được phục vụ qua backend có kiểm tra quyền; không công khai URL R2.
-- Mọi thông báo tiếp nhận hồ sơ chỉ xác nhận đã nhận, không đồng nghĩa hồ sơ đã được duyệt.
+- Chưa deploy hoặc thay đổi website production; việc tạo ZIP không làm site live tự thay đổi.
+- Chưa xác minh dữ liệu D1/R2 thật, secrets, email thật, DNS, domain và quyền Cloudflare.
+- Chưa hoàn tất browser E2E trực tiếp; môi trường trình duyệt kiểm thử bị chặn/không khởi chạy thành công.
+- Điều khoản/cam kết và thông báo dữ liệu trên wizard cần được đơn vị vận hành phê duyệt chính thức.
+- Chat kiểm soát thành viên và tệp theo quyền nhưng chưa có E2EE hoặc realtime qua WebSocket/Durable Objects.
+- CMS dùng các module/tab hiện có và có trình quản lý bố cục Trang chủ cho sắp xếp/bật tắt khối; không tuyên bố có visual drag-and-drop tự do hoàn chỉnh.
+- Chưa bổ sung job tự động dọn tệp staging mồ côi; cần quyết định retention/cleanup policy trước production.
+- Các báo cáo số liệu dashboard phải được đối chiếu với D1 production sau khi có quyền truy cập.
 
+## 8. Quyền riêng tư và dữ liệu
 
-## Lưu ý quan trọng khi cập nhật website đang chạy
-
-- Thư mục triển khai đúng là thư mục chứa trực tiếp `wrangler.toml`, `backend_worker.js`, `public/`, `migrations/` và `package.json` (`SCRD_UI_Release_20261022/` trong ZIP). Không deploy thư mục cha chứa thư mục này.
-- Trang HTML đã gắn cache-busting cho CSS/JS. Sau khi deploy, mở DevTools/Network hoặc tải cứng (Ctrl+F5) để xác nhận `app.js?v=20261022-full-repair-r1` và `styles.css?v=20261022-full-repair-r1` được tải.
-- Nếu website live vẫn hiện thẻ trạng thái D1/R2, liên kết Bootstrap trên header công khai, form đăng ký cũ chỉ có vài trường, hoặc số liệu dashboard không khớp dữ liệu thật, thì deployment đang phục vụ build/asset cũ hoặc cấu hình khác; ZIP này không thể tự thay đổi website live nếu chưa được deploy.
+Không đưa secrets, mật khẩu, token thật hoặc dữ liệu cá nhân thật vào mã nguồn/ZIP. Tệp đăng ký staging chưa gửi bị chặn đọc ngay cả với reviewer; sau khi hồ sơ được gửi, quyền đọc ảnh/chứng từ được giới hạn cho vai trò được phép. Các quyền này vẫn cần được kiểm tra trên môi trường thực trước production.

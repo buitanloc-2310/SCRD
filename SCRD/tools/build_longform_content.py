@@ -81,26 +81,82 @@ HOME = HOME[:19]
 ABOUT = ABOUT[:19]
 
 def make_article(items, lang, page_kind):
+    # Topic-specific editorial templates avoid repeating the same generic paragraphs
+    # across every section while keeping the content evidence-led and non-promotional.
+    needs_vi = [
+      "Trước khi triển khai nội dung về {title}, nhóm cần xác định ai chịu ảnh hưởng, câu hỏi cần trả lời và điều kiện nào có thể làm thay đổi cách tiếp cận. Phạm vi được ghi rõ giúp tránh mở rộng yêu cầu ngoài nguồn lực hoặc bằng chứng sẵn có.",
+      "Khâu chuẩn bị nên tách nhu cầu đã được ghi nhận khỏi giả định ban đầu. Với {title}, mỗi giả định quan trọng cần có cách kiểm tra, người chịu trách nhiệm và mốc xem xét; nếu chưa thể kiểm chứng, tài liệu phải nêu rõ giới hạn thay vì biến dự đoán thành kết luận.",
+      "Khi xem xét {title}, nên lập danh sách bên liên quan, rào cản tham gia, điều kiện tiếp cận và nguồn thông tin hợp pháp. Cách xác định phạm vi này giúp nhóm lựa chọn hoạt động phù hợp, đồng thời tránh yêu cầu người tham gia cung cấp thông tin vượt quá mục đích.",
+      "Một câu hỏi tốt về {title} cần đủ cụ thể để hướng dẫn hành động nhưng đủ mở để tiếp nhận bằng chứng trái với kỳ vọng. Nhóm nên xác định điều gì nằm trong phạm vi, điều gì chưa thể trả lời và trường hợp nào cần chuyển sang đánh giá chuyên môn khác.",
+      "Để xác định nhu cầu liên quan đến {title}, cần xem xét bối cảnh địa phương, năng lực thực hiện, thời gian và khả năng tiếp cận của người tham gia. Không nên suy rộng từ một phản ánh đơn lẻ; thông tin ban đầu cần được đối chiếu bằng nguồn độc lập khi phù hợp.",
+      "Phạm vi của {title} nên được diễn đạt bằng ngôn ngữ người tham gia có thể hiểu, kèm mục tiêu và giới hạn rõ ràng. Việc thống nhất thuật ngữ ngay từ đầu giúp các nhóm phối hợp tránh hiểu khác nhau về đối tượng, kết quả mong đợi và trách nhiệm thực hiện."
+    ]
+    needs_en = [
+      "Before work on {title} begins, the team should identify affected people, the question to answer, and the conditions that could change the approach. A clear scope prevents requests from expanding beyond available resources or the evidence that can reasonably be obtained.",
+      "Preparation should separate documented needs from initial assumptions. For {title}, each important assumption needs a way to check it, an accountable person, and a review point; when verification is not possible, the limitation should be stated rather than turning a prediction into a conclusion.",
+      "Reviewing {title} should include the people involved, barriers to participation, access conditions, and lawful information sources. This scoping work helps teams choose proportionate activities while avoiding requests for personal information that exceeds the stated purpose.",
+      "A useful question about {title} should be specific enough to guide action yet open enough to accommodate evidence that challenges expectations. Teams should state what is in scope, what cannot yet be answered, and when another form of professional review is needed.",
+      "Needs related to {title} should be considered in light of local context, capacity, timing, and participant access. A single comment should not be generalized without support; initial information should be compared with independent sources when that is appropriate and feasible.",
+      "The scope of {title} should use language participants can understand and state its purpose and limits. Agreeing on terminology early helps teams avoid conflicting interpretations of the target group, intended outcomes, and each party's responsibilities."
+    ]
+    method_vi = [
+      "Phương pháp cho {title} cần mô tả cách lựa chọn dữ liệu, tiêu chí đưa vào hoặc loại trừ, công cụ sử dụng và cách ghi nhận thay đổi. Người đọc phải phân biệt được quy trình đã thực hiện với phương án mới chỉ được đề xuất.",
+      "Khi thiết kế quy trình về {title}, cần phân công vai trò, điểm kiểm tra chất lượng và cách xử lý sai lệch. Một quy trình có thể giải thích được quan trọng hơn một danh sách bước dài; mỗi bước nên có mục đích, đầu vào và đầu ra rõ ràng.",
+      "Các tiêu chí đánh giá {title} nên được xác định trước khi xem kết quả để hạn chế lựa chọn tiêu chí có lợi sau khi đã biết dữ liệu. Nếu tiêu chí phải thay đổi, nhóm cần ghi lý do, thời điểm và ảnh hưởng của thay đổi đối với kết luận.",
+      "Tài liệu hóa phương pháp liên quan đến {title} giúp người khác kiểm tra logic của quyết định mà không cần suy đoán. Cần ghi nguồn, phiên bản công cụ, điều kiện thực hiện và các ngoại lệ quan trọng; không được mô tả một quy trình lý tưởng như thể nó đã diễn ra.",
+      "Việc lựa chọn phương pháp cho {title} phải tương xứng với câu hỏi và năng lực thực hiện. Công cụ phức tạp không tự động tạo ra kết quả đáng tin cậy; điều quan trọng là dữ liệu phù hợp, tiêu chí nhất quán và khả năng giải thích các bước phân tích.",
+      "Đối với {title}, nên xác định trước cách xử lý dữ liệu thiếu, câu trả lời mâu thuẫn và trường hợp ngoài dự kiến. Quy tắc xử lý cần được áp dụng nhất quán, đồng thời cho phép ghi nhận ngoại lệ có lý do thay vì âm thầm loại bỏ thông tin bất tiện."
+    ]
+    method_en = [
+      "Methods for {title} should explain how evidence is selected, which inclusion or exclusion criteria apply, what tools are used, and how changes are recorded. Readers must be able to distinguish procedures actually followed from options that were only proposed.",
+      "A process for {title} needs assigned responsibilities, quality checkpoints, and a way to handle deviations. An explainable workflow matters more than a long checklist; each step should have a clear purpose, input, and expected output.",
+      "Evaluation criteria for {title} should be defined before results are reviewed, reducing the risk of selecting favorable criteria after the evidence is known. If criteria change, record the reason, timing, and effect on any conclusions.",
+      "Documenting methods for {title} lets others examine the reasoning without guessing. Record sources, tool versions, operating conditions, and meaningful exceptions; never describe an idealized procedure as if it had actually taken place.",
+      "The method chosen for {title} should fit the question and the team's capacity. A complex tool does not automatically produce trustworthy results; suitable evidence, consistent criteria, and explainable analysis are more important.",
+      "For {title}, define in advance how missing data, conflicting responses, and unexpected cases will be handled. Apply the rules consistently while allowing justified exceptions to be recorded rather than silently discarding inconvenient information."
+    ]
+    delivery_vi = [
+      "Trong quá trình thực hiện {title}, thông tin cập nhật cần phản ánh đúng tiến độ và những việc còn phụ thuộc. Khi có thay đổi về lịch, nhân sự hoặc phạm vi, người phụ trách nên ghi lại quyết định và thông báo cho các bên bị ảnh hưởng bằng kênh phù hợp.",
+      "Hoạt động liên quan đến {title} cần tôn trọng quyền tham gia và quyền từ chối của mỗi người. Hướng dẫn nên nêu rõ việc gì sẽ diễn ra, ai có thể xem dữ liệu, cách đặt câu hỏi và nơi tiếp nhận phản ánh nếu người tham gia thấy không an toàn hoặc chưa hiểu.",
+      "Để duy trì chất lượng của {title}, nhóm cần lưu bằng chứng đủ dùng, cập nhật trạng thái có ngày tháng và tránh biến số liệu tạm thời thành kết quả cuối. Tài liệu nội bộ và nội dung công khai phải được phân biệt để không làm lộ thông tin cần bảo vệ.",
+      "Phối hợp trong {title} nên có đầu mối chịu trách nhiệm, quy tắc chuyển giao và cách xử lý khi người phụ trách vắng mặt. Việc bàn giao cần giữ được bối cảnh quyết định, hạn chế phụ thuộc vào trí nhớ cá nhân và không chia sẻ quyền truy cập vượt nhu cầu công việc.",
+      "Khi có phản hồi về {title}, nhóm cần ghi nhận nội dung, đánh giá mức độ ảnh hưởng và phản hồi trong thời hạn hợp lý. Không phải mọi đề xuất đều có thể được chấp nhận, nhưng lý do tiếp nhận hoặc từ chối nên rõ ràng và không gây bất lợi cho người góp ý.",
+      "Tài liệu vận hành cho {title} cần tính đến khả năng gián đoạn, lỗi công cụ và việc người dùng sử dụng thiết bị khác nhau. Hướng dẫn thay thế nên đủ đơn giản để tiếp tục công việc an toàn mà không làm mất dữ liệu hoặc bỏ qua các bước kiểm soát cần thiết."
+    ]
+    delivery_en = [
+      "During work on {title}, updates should accurately describe progress and unresolved dependencies. When schedules, staffing, or scope change, the responsible person should record the decision and notify affected parties through an appropriate channel.",
+      "Activities related to {title} must respect each person's ability to participate or decline. Instructions should explain what will happen, who may see the data, how to ask questions, and where to raise concerns if a participant feels unsafe or confused.",
+      "To maintain the quality of {title}, teams should retain proportionate evidence, date status updates, and avoid presenting provisional figures as final results. Internal records must be distinguished from public material so protected information is not exposed.",
+      "Coordination for {title} should identify an accountable contact, handover rules, and arrangements for absences. A handover should preserve decision context, reduce dependence on personal memory, and avoid sharing access beyond what the work requires.",
+      "When feedback about {title} arrives, the team should record it, assess its impact, and respond within a reasonable period. Not every suggestion can be accepted, but the reason for accepting or declining it should be clear and should not penalize the person who raised it.",
+      "Operational guidance for {title} should account for outages, tool failures, and differences in users' devices. A fallback process should let people continue safely without losing data or bypassing necessary safeguards."
+    ]
+    evaluate_vi = [
+      "Đánh giá {title} cần dựa trên bằng chứng tương ứng với tuyên bố được đưa ra. Báo cáo nên phân biệt đầu ra đã hoàn thành, thay đổi quan sát được và tác động chưa đủ dữ liệu để kết luận; không suy diễn quan hệ nhân quả chỉ từ việc hai sự kiện xảy ra cùng lúc.",
+      "Khi tổng kết {title}, cần công bố phạm vi dữ liệu, thời điểm cập nhật, giới hạn đo lường và những câu hỏi còn bỏ ngỏ. Một kết quả chưa như kỳ vọng vẫn có thể đem lại bài học nếu phương pháp, sai lệch và điều kiện thực hiện được mô tả trung thực.",
+      "Các chỉ số liên quan đến {title} chỉ có ý nghĩa khi có định nghĩa, nguồn và thời điểm đo nhất quán. Nếu chưa có số liệu đáng tin cậy, nên ghi rõ chưa có dữ liệu xác minh thay vì ước lượng để lấp chỗ trống hoặc tạo cảm giác chắc chắn.",
+      "Bước rà soát cuối của {title} nên hỏi điều gì đã được chứng minh, điều gì chỉ là nhận định và điều gì cần kiểm tra tiếp. Kết luận cần tương xứng với bằng chứng, đồng thời chỉ ra hành động tiếp theo và người chịu trách nhiệm nếu cần cải thiện.",
+      "Kết quả của {title} cần được xem xét cùng các yếu tố có thể làm sai lệch như mẫu không đại diện, dữ liệu thiếu, thay đổi điều kiện hoặc phản hồi thiên lệch. Việc nêu rõ các giới hạn này giúp người đọc hiểu kết quả áp dụng đến đâu.",
+      "Sau mỗi chu kỳ {title}, nhóm nên lưu bài học có thể áp dụng, quyết định sẽ thay đổi và vấn đề cần theo dõi ở lần tiếp theo. Cải tiến có trách nhiệm không chỉ ghi nhận điều thành công mà còn kiểm tra chi phí, tác dụng phụ và những nhóm chưa được phục vụ tốt."
+    ]
+    evaluate_en = [
+      "Evaluation of {title} should use evidence proportionate to the claim being made. Reports should distinguish completed outputs, observed changes, and impacts that cannot yet be established; correlation alone must not be presented as proof of causation.",
+      "A review of {title} should disclose the evidence scope, update date, measurement limits, and unanswered questions. A result that falls short of expectations can still be useful if the method, deviations, and operating conditions are described honestly.",
+      "Metrics for {title} are meaningful only when their definitions, sources, and measurement dates are consistent. If reliable figures are unavailable, state that evidence has not been verified rather than estimating values to fill a gap or create false certainty.",
+      "The final review of {title} should ask what has been demonstrated, what remains an interpretation, and what needs further checking. Conclusions must match the evidence and identify practical next steps and accountable owners where improvement is needed.",
+      "Results for {title} should be considered alongside possible sources of bias, such as an unrepresentative sample, missing data, changed conditions, or selective feedback. Stating these limits helps readers understand where the findings can reasonably be applied.",
+      "After each cycle of {title}, record lessons that can be used, decisions that will change, and questions to monitor next time. Responsible improvement considers not only successes but also costs, side effects, and groups that remain underserved."
+    ]
+    banks = (needs_vi, method_vi, delivery_vi, evaluate_vi) if lang == 'vi' else (needs_en, method_en, delivery_en, evaluate_en)
     out = []
-    for i,(tvi,ten,dvi,den) in enumerate(items,1):
-        title = tvi if lang == 'vi' else ten
+    for i, (t, en_title, dvi, den) in enumerate(items, 1):
+        title = t if lang == 'vi' else en_title
         detail = dvi if lang == 'vi' else den
         if lang == 'vi':
-            paras = [
-              f"Trong phạm vi {title.lower()}, {detail} Nội dung được trình bày như định hướng chuyên môn và không thay thế cho kế hoạch được phê duyệt riêng của từng chương trình.",
-              f"Ở bước xác định nhu cầu, nhóm phụ trách cần làm rõ vấn đề, đối tượng liên quan, điều kiện thực hiện và dữ liệu có thể thu thập hợp pháp. Những giả định chưa có bằng chứng phải được ghi nhận riêng để tránh bị hiểu thành sự thật đã xác minh.",
-              f"Khi thiết kế cách làm, cần xác định người chịu trách nhiệm, tiêu chí chất lượng, mốc rà soát và phương án xử lý rủi ro. Cách tiếp cận phù hợp phải dễ giải thích cho người tham gia, tương xứng với nguồn lực và có thể điều chỉnh khi bối cảnh thay đổi.",
-              f"Trong quá trình thực hiện, thông tin được ghi nhận cần đủ để giải thích quyết định nhưng không thu thập dữ liệu cá nhân dư thừa. Các bên liên quan nên có kênh phản hồi dễ tiếp cận; ý kiến khác biệt được xem xét trên cơ sở lý do và bằng chứng thay vì bị bỏ qua.",
-              f"Khi đánh giá {title.lower()}, cần phân biệt điều đã hoàn thành, điều đang diễn ra và điều còn chờ xác minh. Báo cáo nên chỉ ra giới hạn, nguồn dữ liệu và bước tiếp theo có thể thực hiện. Nếu chưa có minh chứng, cách diễn đạt đúng là chưa đủ dữ liệu để kết luận."
-            ]
+            intro = f"Phần này tập trung vào {title.lower()}. {detail} Các nội dung dưới đây là định hướng chuyên môn; kế hoạch cụ thể cần được phê duyệt và điều chỉnh theo bối cảnh thực tế."
         else:
-            paras = [
-              f"Within the scope of {title.lower()}, {detail} This description is a professional orientation and does not replace a separately approved plan for any specific program.",
-              "At the needs-assessment stage, the responsible team should clarify the problem, affected groups, operating conditions, and evidence that can lawfully be collected. Assumptions without supporting evidence should be recorded separately so they are not mistaken for verified facts.",
-              "When designing an approach, teams should define ownership, quality criteria, review milestones, and risk responses. A suitable approach should be explainable to participants, proportionate to available resources, and adjustable when circumstances change.",
-              "During delivery, records should be sufficient to explain decisions without collecting unnecessary personal data. Stakeholders need an accessible feedback channel, and different views should be considered through reasons and evidence instead of being disregarded.",
-              f"When evaluating {title.lower()}, distinguish completed work, work in progress, and matters that remain unverified. Reports should identify limitations, sources, and practical next steps. When supporting evidence is missing, the accurate statement is that there is not yet enough information to conclude."
-            ]
+            intro = f"This section focuses on {title.lower()}. {detail} The material below provides professional guidance; each specific plan should be approved and adapted to its actual context."
+        paras = [intro] + [bank[(i-1) % len(bank)].format(title=title.lower()) for bank in banks]
         out.append(f'<section class="longform-section" id="{page_kind}-{i}"><h2>{i}. {html.escape(title)}</h2>')
         out.extend(f'<p>{html.escape(p)}</p>' for p in paras)
         out.append('</section>')

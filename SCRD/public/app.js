@@ -45,6 +45,22 @@ const I18N = {
   }
 };
 
+function createEmptyRegDraft() {
+  return {
+    step: 1,
+    full_name: '', email: '', phone: '', gender: 'Nam', date_of_birth: '',
+    guardian_full_name: '', guardian_relationship: '', guardian_phone: '', guardian_email: '', guardian_consent: false,
+    applicant_group: 'student_uni', education_level: 'Đại học', institution_name: '', major_or_field: '', current_occupation: 'Sinh viên',
+    work_unit: '', class_name: '', faculty_department: '', position_title: '',
+    id_document_type: 'CCCD', id_number: '', id_issued_date: '', id_issued_place: '', id_expiry_date: '',
+    personal_photo_r2_key: '', personal_photo_name: '', personal_photo_r2_file_id: '', personal_photo_preview_data_url: '',
+    requested_role: 'member', registration_purpose: '', research_or_project_interest: '', experience_summary: '',
+    supporting_doc_r2_key: '', supporting_doc_name: '',
+    privacy_policy_accepted: false, terms_accepted: false, data_accuracy_confirmed: false,
+    signature_data: '', signature_method: '', submittedResult: null
+  };
+}
+
 export const AppState = {
   lang: localStorage.getItem('skyfirst_lang') === 'en' ? 'en' : 'vi',
   currentPath: window.location.pathname || '/',
@@ -65,10 +81,17 @@ export const AppState = {
     hero_eyebrow_en: 'SKY FIRST CENTER FOR RESEARCH AND DEVELOPMENT',
     hero_title_vi: 'NGHIÊN CỨU KHOA HỌC & PHÁT TRIỂN CỘNG ĐỒNG',
     hero_title_en: 'SCIENTIFIC RESEARCH & COMMUNITY DEVELOPMENT',
-    hero_subtitle_vi: 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững. Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
-    hero_subtitle_en: 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives. The official platform of Sky First Center for Research and Development.',
+    hero_subtitle_vi: 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững.',
+    hero_subtitle_en: 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives.',
+    hero_description_vi: 'Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
+    hero_description_en: 'The official platform of Sky First Center for Research and Development.',
     copyright_vi: '© Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
-    copyright_en: '© Sky First Center for Research and Development.'
+    copyright_en: '© Sky First Center for Research and Development.',
+    homepage_layout: [
+      {id:'hero',enabled:true,order:1},{id:'pillars',enabled:true,order:2},{id:'programs',enabled:true,order:3},
+      {id:'assessments',enabled:true,order:4},{id:'publications',enabled:true,order:5},{id:'news',enabled:true,order:6},
+      {id:'partners',enabled:true,order:7},{id:'cooperation',enabled:true,order:8},{id:'longform',enabled:true,order:9}
+    ]
   },
   menus: [],
   redirects: [],
@@ -85,51 +108,7 @@ export const AppState = {
   chatRooms: [],
   activeChatRoomId: null,
   activeChatMessages: [],
-  regDraft: {
-    step: 1,
-    full_name: '',
-    email: '',
-    phone: '',
-    gender: 'Nam',
-    date_of_birth: '',
-    guardian_full_name: '',
-    guardian_relationship: '',
-    guardian_phone: '',
-    guardian_email: '',
-    guardian_consent: false,
-    applicant_group: 'student_uni',
-    education_level: 'Đại học',
-    institution_name: '',
-    major_or_field: '',
-    current_occupation: 'Sinh viên',
-    work_unit: '',
-    class_name: '',
-    faculty_department: '',
-    position_title: '',
-    id_document_type: 'CCCD',
-    id_number: '',
-    id_issued_date: '',
-    id_issued_place: '',
-    id_expiry_date: '',
-    personal_photo_r2_key: '',
-    personal_photo_name: '',
-    id_front_r2_key: '',
-    id_front_name: '',
-    id_back_r2_key: '',
-    id_back_name: '',
-    requested_role: 'member',
-    registration_purpose: '',
-    research_or_project_interest: '',
-    experience_summary: '',
-    supporting_doc_r2_key: '',
-    supporting_doc_name: '',
-    privacy_policy_accepted: false,
-    terms_accepted: false,
-    data_accuracy_confirmed: false,
-    signature_data: '',
-    signature_method: '',
-    submittedResult: null
-  }
+  regDraft: createEmptyRegDraft()
 };
 
 export function esc(val) {
@@ -267,11 +246,26 @@ export async function loadInitialData() {
     }
     // Keep the eyebrow as the Center identity; the approved scientific/community headline belongs in hero_title_vi.
     // Keep the English eyebrow as the Center identity; the approved headline belongs in hero_title_en.
-    if (AppState.settings.hero_subtitle_vi === 'Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First xây dựng nền tảng tri thức chuẩn mực, thúc đẩy các chương trình nghiên cứu ứng dụng, khảo thí minh bạch và dự án phục vụ cộng đồng bền vững.') {
-      AppState.settings.hero_subtitle_vi = 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững. Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.';
+    const officialHeroSubtitleVi = 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững.';
+    const officialHeroDescriptionVi = 'Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.';
+    const officialHeroSubtitleEn = 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives.';
+    const officialHeroDescriptionEn = 'The official platform of Sky First Center for Research and Development.';
+    const knownCombinedVi = [
+      'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững. Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
+      'Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First xây dựng nền tảng tri thức chuẩn mực, thúc đẩy các chương trình nghiên cứu ứng dụng, khảo thí minh bạch và dự án phục vụ cộng đồng bền vững.'
+    ];
+    if (knownCombinedVi.includes(AppState.settings.hero_subtitle_vi)) {
+      AppState.settings.hero_subtitle_vi = officialHeroSubtitleVi;
+      if (!AppState.settings.hero_description_vi || AppState.settings.hero_description_vi === officialHeroDescriptionVi) AppState.settings.hero_description_vi = officialHeroDescriptionVi;
     }
-    if (AppState.settings.hero_subtitle_en === 'Sky First Center for Research and Development builds a rigorous knowledge platform, advancing applied research, transparent academic assessment, and sustainable community initiatives.') {
-      AppState.settings.hero_subtitle_en = 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives. The official platform of Sky First Center for Research and Development.';
+    const knownCombinedEn = [
+      'Connecting academic knowledge, standardized assessment, and sustainable community initiatives. The official platform of Sky First Center for Research and Development.',
+      'Sky First Center for Research and Development builds a rigorous knowledge platform, advancing applied research, transparent academic assessment, and sustainable community initiatives.',
+      'Sky First Center for Research and Development builds a rigorous knowledge platform, advancing applied research programs, transparent academic assessment, and sustainable community initiatives.'
+    ];
+    if (knownCombinedEn.includes(AppState.settings.hero_subtitle_en)) {
+      AppState.settings.hero_subtitle_en = officialHeroSubtitleEn;
+      if (!AppState.settings.hero_description_en || AppState.settings.hero_description_en === officialHeroDescriptionEn) AppState.settings.hero_description_en = officialHeroDescriptionEn;
     }
     AppState.menus = pubData.menus || [];
     AppState.redirects = pubData.redirects || [];
@@ -514,6 +508,7 @@ export async function renderRoute() {
   const path = AppState.currentPath;
   document.body.classList.toggle('admin-route', ['/bang-dieu-khien', '/quan-tri', '/admin', '/admin/settings'].includes(path));
   document.body.classList.toggle('login-route', path === '/dang-nhap');
+  document.body.classList.toggle('password-change-route', path === '/doi-mat-khau');
   document.documentElement.lang = isVi ? 'vi' : 'en';
   updateDocumentMetadata(path, isVi);
 
@@ -552,7 +547,14 @@ export async function renderRoute() {
     return;
   }
 
-  if (path === '/') {
+  if (AppState.currentUser?.must_change_password && path !== '/doi-mat-khau') {
+    navigateTo('/doi-mat-khau', true);
+    return;
+  }
+
+  if (path === '/doi-mat-khau') {
+    renderForcePasswordChangeView(vp, isVi);
+  } else if (path === '/') {
     renderHomeView(vp, isVi, t);
   } else if (path === '/gioi-thieu' || path.startsWith('/gioi-thieu/')) {
     renderAboutView(vp, isVi);
@@ -578,8 +580,15 @@ export async function renderRoute() {
     renderForgotPasswordView(vp, isVi);
   } else if (path === '/dang-nhap') {
     renderLoginView(vp, isVi);
-  } else if (path === '/bang-dieu-khien' || path === '/quan-tri') {
+  } else if (path === '/bang-dieu-khien' || path === '/quan-tri' || path === '/admin') {
     await renderDashboardView(vp, isVi);
+  } else if (path === '/admin/settings') {
+    if (AppState.currentUser && !['super_admin', 'cms_editor'].includes(AppState.currentUser.role)) {
+      vp.innerHTML = `<section class="container"><div class="alert-box alert-error" role="alert">${isVi ? 'Bạn không có quyền truy cập cài đặt CMS.' : 'You do not have permission to access CMS settings.'}</div><a class="btn btn-primary" href="/bang-dieu-khien" data-nav="/bang-dieu-khien">${isVi ? 'Quay lại bảng điều khiển' : 'Back to dashboard'}</a></section>`;
+    } else {
+      AppState.activeDashboardTab = 'cms_menus';
+      await renderDashboardView(vp, isVi);
+    }
   } else {
     vp.innerHTML = `
       <div class="container">
@@ -603,7 +612,7 @@ function renderHomeView(vp, isVi, t) {
   const projects = AppState.communityProjects.slice(0, 3);
 
   vp.innerHTML = `
-    <section class="hero-banner">
+    <section class="hero-banner" data-home-block="hero">
       <div class="hero-grid">
         <div>
           <span class="eyebrow hero-eyebrow">
@@ -611,6 +620,7 @@ function renderHomeView(vp, isVi, t) {
           </span>
           <h1 class="hero-title">${esc(isVi ? s.hero_title_vi : s.hero_title_en)}</h1>
           <p class="hero-lead">${esc(isVi ? s.hero_subtitle_vi : s.hero_subtitle_en)}</p>
+          <p class="hero-description">${esc(isVi ? s.hero_description_vi : s.hero_description_en)}</p>
           <div class="hero-btns">
             <a class="btn btn-primary hero-btn-primary" href="/gioi-thieu" data-nav="/gioi-thieu">
               ${esc(isVi ? (s.hero_cta_primary_vi || 'Giới thiệu Trung tâm') : (s.hero_cta_primary_en || 'About the Center'))}
@@ -636,7 +646,7 @@ function renderHomeView(vp, isVi, t) {
       </div>
     </section>
 
-    <section class="container">
+    <section class="container" data-home-block="pillars">
       <div class="section-head">
         <div>
           <span class="eyebrow">${isVi ? 'LĨNH VỰC HOẠT ĐỘNG TRỌNG TÂM' : 'CORE AREAS OF ACTIVITY'}</span>
@@ -689,7 +699,7 @@ function renderHomeView(vp, isVi, t) {
       </div>
     </section>
 
-    <section style="background:var(--bg-100);padding:8px 0;">
+    <section data-home-block="programs" style="background:var(--bg-100);padding:8px 0;">
       <div class="container">
         <div class="section-head">
           <div>
@@ -739,7 +749,20 @@ function renderHomeView(vp, isVi, t) {
       </div>
     </section>
 
-    <section class="container">
+    <section class="container" data-home-block="assessments">
+      <div class="section-head">
+        <div><span class="eyebrow">${isVi ? 'KHẢO THÍ & ĐÁNH GIÁ HỌC THUẬT' : 'ACADEMIC ASSESSMENT'}</span><h2 class="section-title">${isVi ? 'Các kỳ khảo thí đang mở' : 'Available assessments'}</h2><p class="section-desc">${isVi ? 'Chỉ hiển thị kỳ thi được công bố và đang trong thời gian cho phép.' : 'Only published assessments within their allowed availability window are shown.'}</p></div>
+        <a class="btn btn-secondary" href="/khao-thi-danh-gia" data-nav="/khao-thi-danh-gia">${isVi ? 'Xem cổng khảo thí →' : 'Open assessment portal →'}</a>
+      </div>
+      ${AppState.exams.length ? `<div class="grid-3">${AppState.exams.slice(0,3).map(ex => `<article class="card"><span class="card-tag">${esc(ex.code || ex.assessment_label || 'SCRD Exam')}</span><h3>${esc(isVi ? (ex.title || ex.title_en || '') : (ex.title_en || ex.title || ''))}</h3><p>${esc(isVi ? (ex.public_overview_vi || '') : (ex.public_overview_en || ex.public_overview_vi || ''))}</p><div class="card-meta"><span class="status-pill status-blue">${Number(ex.duration_minutes || 0)} ${isVi ? 'phút' : 'minutes'}</span><a href="/khao-thi-danh-gia" data-nav="/khao-thi-danh-gia">${isVi ? 'Chi tiết →' : 'Details →'}</a></div></article>`).join('')}</div>` : `<div class="empty-state"><p>${isVi ? 'Hiện chưa có kỳ khảo thí công khai đang mở. Thông tin sẽ xuất hiện khi được công bố trong hệ thống.' : 'No public assessments are currently open. Information will appear when an assessment is published in the system.'}</p></div>`}
+    </section>
+
+    <section class="container" data-home-block="publications">
+      <div class="section-head"><div><span class="eyebrow">${isVi ? 'CÔNG BỐ & TÀI LIỆU' : 'PUBLICATIONS & RESOURCES'}</span><h2 class="section-title">${isVi ? 'Công bố khoa học và tài liệu' : 'Scientific publications and resources'}</h2><p class="section-desc">${isVi ? 'Chỉ giới thiệu tài liệu được xác minh và cho phép công khai.' : 'Only verified resources approved for public access are listed.'}</p></div><a class="btn btn-secondary" href="/cong-bo-tai-lieu" data-nav="/cong-bo-tai-lieu">${isVi ? 'Mở thư viện →' : 'Open library →'}</a></div>
+      ${AppState.publications.length ? `<div class="grid-3">${AppState.publications.slice(0,3).map(pub => `<article class="card"><span class="card-tag">${esc(pub.category || 'Publication')}</span><h3>${esc(isVi ? (pub.title_vi || '') : (pub.title_en || pub.title_vi || ''))}</h3><p>${esc(isVi ? (pub.summary_vi || '') : (pub.summary_en || pub.summary_vi || ''))}</p><div class="card-meta"><span>${esc(pub.published_date || '')}</span><a href="/cong-bo-tai-lieu" data-nav="/cong-bo-tai-lieu">${isVi ? 'Xem tài liệu →' : 'View resource →'}</a></div></article>`).join('')}</div>` : `<div class="empty-state"><p>${isVi ? 'Chưa có ấn phẩm được xác minh để công khai. Không hiển thị tài liệu chưa được duyệt.' : 'No verified publications are available for public display yet.'}</p></div>`}
+    </section>
+
+    <section class="container" data-home-block="news">
       <div class="section-head">
         <div>
           <span class="eyebrow">${isVi ? 'TIN TỨC & HOẠT ĐỘNG' : 'NEWS & ACTIVITIES'}</span>
@@ -766,7 +789,12 @@ function renderHomeView(vp, isVi, t) {
       `}
     </section>
 
-    <section class="container" style="padding-top:0;">
+    <section class="container" data-home-block="partners">
+      <div class="section-head"><div><span class="eyebrow">${isVi ? 'HỢP TÁC & ĐỐI TÁC' : 'COOPERATION & PARTNERS'}</span><h2 class="section-title">${isVi ? 'Kết nối cùng các tổ chức và đơn vị' : 'Connect with organizations and institutions'}</h2><p class="section-desc">${isVi ? 'Danh sách chỉ bao gồm đối tác được xác minh và cho phép công bố.' : 'Only verified partners approved for public listing are shown.'}</p></div><a class="btn btn-secondary" href="/hop-tac-doi-tac" data-nav="/hop-tac-doi-tac">${isVi ? 'Tìm hiểu hợp tác →' : 'Explore cooperation →'}</a></div>
+      ${AppState.partners.length ? `<div class="grid-3">${AppState.partners.slice(0,3).map(partner => `<article class="card"><span class="card-tag">${esc(partner.partner_type || (isVi ? 'Đối tác' : 'Partner'))}</span><h3>${esc(isVi ? partner.organization_name_vi : (partner.organization_name_en || partner.organization_name_vi))}</h3><p>${esc(isVi ? (partner.description_vi || '') : (partner.description_en || partner.description_vi || ''))}</p>${partner.website_url && /^https?:\/\//i.test(partner.website_url) ? `<a href="${esc(partner.website_url)}" target="_blank" rel="noopener noreferrer">${isVi ? 'Website đơn vị →' : 'Organization website →'}</a>` : ''}</article>`).join('')}</div>` : `<div class="empty-state"><p>${isVi ? 'Danh sách đối tác chính thức đang được rà soát. Chúng tôi không hiển thị logo hoặc quan hệ hợp tác chưa được xác nhận.' : 'Official partner listings are under review. Unverified logos or partnerships are not displayed.'}</p></div>`}
+    </section>
+
+    <section class="container" data-home-block="cooperation" style="padding-top:0;">
       <div class="card" style="background:var(--bg-100);border:1px solid var(--line-200);">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;">
           <div>
@@ -789,9 +817,24 @@ function renderHomeView(vp, isVi, t) {
       if (!longform) return '';
       const longTitle = isVi ? longform.title_vi : (longform.title_en || longform.title_vi);
       const longBody = isVi ? longform.content_vi : (longform.content_en || longform.content_vi);
-      return `<section class="container longform-shell"><div class="section-head"><div><span class="eyebrow">${isVi ? 'THÔNG TIN CHUYÊN SÂU' : 'IN-DEPTH INFORMATION'}</span><h2 class="section-title">${esc(longTitle)}</h2></div></div><article class="longform-content">${safeRichHtml(longBody)}</article></section>`;
+      return `<section class="container longform-shell" data-home-block="longform"><div class="section-head"><div><span class="eyebrow">${isVi ? 'THÔNG TIN CHUYÊN SÂU' : 'IN-DEPTH INFORMATION'}</span><h2 class="section-title">${esc(longTitle)}</h2></div></div><article class="longform-content">${safeRichHtml(longBody)}</article></section>`;
     })()}
   `;
+  applyHomeLayout(vp);
+}
+
+function applyHomeLayout(vp) {
+  const fallback = AppState.settings.homepage_layout;
+  const layout = Array.isArray(fallback) ? fallback : [];
+  const blocks = new Map([...vp.querySelectorAll('[data-home-block]')].map(el => [el.dataset.homeBlock, el]));
+  const normalized = layout.filter(x => x && blocks.has(x.id)).sort((a,b) => Number(a.order||0)-Number(b.order||0));
+  const seen = new Set();
+  for (const item of normalized) {
+    const el = blocks.get(item.id); if (!el || seen.has(item.id)) continue; seen.add(item.id);
+    el.hidden = item.id !== 'hero' && item.enabled === false;
+    vp.appendChild(el);
+  }
+  for (const [id,el] of blocks) if (!seen.has(id)) vp.appendChild(el);
 }
 
 // ============================================================================
@@ -1450,8 +1493,7 @@ function renderRegister5StepsView(vp, isVi) {
       </div>
     `;
     document.getElementById('btnNewRegForm')?.addEventListener('click', () => {
-      AppState.regDraft.submittedResult = null;
-      AppState.regDraft.step = 1;
+      AppState.regDraft = createEmptyRegDraft();
       renderRoute();
     });
     return;
@@ -1543,6 +1585,7 @@ function localizeRegistrationMarkup(markup, english) {
     ['Loại giấy tờ định danh','Identity document type'], ['Căn cước công dân (CCCD - 12 chữ số)','Citizen ID (12 digits)'], ['Hộ chiếu (Passport)','Passport'], ['Thẻ học sinh / sinh viên','Student ID card'], ['Mã định danh giấy khai sinh','Birth certificate identifier'],
     ['Số giấy tờ định danh','Identity document number'], ['Ngày cấp','Issue date'], ['Nơi cấp','Place of issue'], ['Ngày hết hạn giấy tờ (nếu có)','Document expiration date (if applicable)'],
     ['Ảnh chân dung cá nhân (JPG/PNG/WEBP) *','Personal portrait (JPG/PNG/WEBP) *'], ['Chọn tệp trực tiếp từ thiết bị','Choose a file from your device'],
+    ['Chọn ảnh chân dung của chính bạn từ thiết bị','Choose your own portrait from your device'], ['Ảnh chân dung xem trước','Portrait preview'], ['Ảnh chân dung cá nhân xem trước','Personal portrait preview'], ['Ảnh chân dung đã chọn','Selected portrait'],
     ['Tiếp tục Bước 4 →','Continue to Step 4 →'], ['Quay lại Bước 3','Back to Step 3'],
     ['Lưu ý: Người đăng ký chỉ chọn nhóm vai trò đề xuất; vai trò chính thức trong hệ thống chỉ được xác lập sau khi Hội đồng/Cán bộ có thẩm quyền xét duyệt.','Note: You are selecting a requested role only. Your actual system role is assigned only after review and approval by an authorized person.'],
     ['Nhóm vai trò đề xuất đăng ký','Requested role'], ['Thành viên Trung tâm (Member)','Center member (Member)'], ['Học viên / Thí sinh Khảo thí (Student)','Learner / assessment candidate (Student)'],
@@ -1554,7 +1597,7 @@ function localizeRegistrationMarkup(markup, english) {
     ['Hồ sơ / Tài liệu minh chứng bổ sung (PDF/JPG/PNG — nếu có)','Additional supporting documents (PDF/JPG/PNG — optional)'], ['Không bắt buộc','Optional'],
     ['Tiếp tục Bước 5 →','Continue to Step 5 →'], ['Quay lại Bước 4','Back to Step 4'],
     ['Bản tóm tắt thông tin hồ sơ trước khi gửi','Application summary before submission'], ['Họ và tên:','Full name:'], ['Ngày sinh:','Date of birth:'], ['Dưới 18 tuổi','Under 18'], ['Email & SĐT:','Email & phone:'], ['Người giám hộ:','Guardian:'],
-    ['Trình độ & Đơn vị:','Education & organization:'], ['Chuyên ngành / Vai trò:','Major / role:'], ['Giấy tờ định danh:','Identity document:'], ['Cấp ngày','Issued on'], ['Nhóm quyền đề xuất:','Requested role:'],
+    ['Trình độ & Đơn vị:','Education & organization:'], ['Chuyên ngành / Vai trò:','Major / role:'], ['Giấy tờ định danh:','Identity document:'], ['Cấp ngày','Issued on'], ['Ngày / nơi cấp:','Issue date / place:'], ['Hạn sử dụng:','Expiration date:'], ['Không cung cấp / không áp dụng','Not provided / not applicable'], ['Nhóm quyền đề xuất:','Requested role:'], ['Lĩnh vực quan tâm:','Area of interest:'], ['Mục đích xin cấp tài khoản:','Purpose of account request:'], ['Kinh nghiệm bổ sung:','Additional experience:'], ['Tài liệu minh chứng bổ sung:','Additional supporting document:'], ['Chưa cung cấp','Not provided'], ['Không cung cấp','Not provided'], ['Không đính kèm','Not attached'], ['Chưa tải ảnh chân dung','Portrait not uploaded'],
     ['Sửa Bước 1','Edit Step 1'], ['Sửa Bước 2','Edit Step 2'], ['Sửa Bước 3','Edit Step 3'], ['Sửa Bước 4','Edit Step 4'],
     ['Điều khoản đăng ký và sử dụng tài khoản Sky First','Sky First account registration and use terms'],
     ['1. Mục đích tài khoản.','1. Account purpose.'], ['Tài khoản được sử dụng để truy cập các dịch vụ, hoạt động nghiên cứu, dự án cộng đồng và chức năng khảo thí mà Trung tâm cho phép theo vai trò được cấp.','The account provides access to services, research activities, community projects and assessments permitted by the Center for the assigned role.'],
@@ -1756,8 +1799,12 @@ function renderRegStepContent(d, age, isMinor) {
           <label class="form-label" for="filePersonalPhoto">Ảnh chân dung cá nhân (JPG/PNG/WEBP) *</label>
           <input id="filePersonalPhoto" type="file" accept="image/jpeg,image/png,image/webp" class="form-control" data-upload-purpose="personal_photo" required>
           <small id="status_personal_photo" style="display:block;margin-top:6px;color:var(--emerald-600);font-weight:600;">
-            ${d.personal_photo_name ? `✓ Đã tải: ${esc(d.personal_photo_name)}` : 'Chọn tệp trực tiếp từ thiết bị'}
+            ${d.personal_photo_name ? `✓ Đã tải: ${esc(d.personal_photo_name)}` : 'Chọn ảnh chân dung của chính bạn từ thiết bị'}
           </small>
+          <div id="personalPhotoPreviewWrap" class="personal-photo-preview-wrap" ${d.personal_photo_preview_data_url ? '' : 'hidden'}>
+            <strong>Ảnh chân dung xem trước</strong>
+            <img id="personalPhotoPreview" src="${d.personal_photo_preview_data_url ? esc(d.personal_photo_preview_data_url) : ''}" alt="Ảnh chân dung cá nhân xem trước">
+          </div>
         </div>
       </div>
 
@@ -1830,8 +1877,20 @@ function renderRegStepContent(d, age, isMinor) {
         <div>
           <p>• <strong>Trình độ & Đơn vị:</strong> ${esc(d.education_level)} — ${esc(d.institution_name)}</p>
           <p>• <strong>Chuyên ngành / Vai trò:</strong> ${esc(d.major_or_field)} (${esc(d.current_occupation)})</p>
-          <p>• <strong>Giấy tờ định danh:</strong> ${esc(d.id_document_type)} (${esc(maskedIdPreview)}) — Cấp ngày ${esc(d.id_issued_date)}</p>
+          <p>• <strong>Giấy tờ định danh:</strong> ${esc(d.id_document_type)} (${esc(maskedIdPreview)})</p>
+          <p>• <strong>Ngày / nơi cấp:</strong> ${esc(d.id_issued_date)} — ${esc(d.id_issued_place)}</p>
+          <p>• <strong>Hạn sử dụng:</strong> ${esc(d.id_expiry_date || 'Không cung cấp / không áp dụng')}</p>
           <p>• <strong>Nhóm quyền đề xuất:</strong> <code>${esc(d.requested_role)}</code></p>
+        </div>
+      </div>
+      <div class="registration-review-extras">
+        <p><strong>Lĩnh vực quan tâm:</strong> ${esc(d.research_or_project_interest || 'Chưa cung cấp')}</p>
+        <p><strong>Mục đích xin cấp tài khoản:</strong> ${esc(d.registration_purpose || 'Chưa cung cấp')}</p>
+        <p><strong>Kinh nghiệm bổ sung:</strong> ${esc(d.experience_summary || 'Không cung cấp')}</p>
+        <p><strong>Tài liệu minh chứng bổ sung:</strong> ${esc(d.supporting_doc_name || 'Không đính kèm')}</p>
+        <div class="registration-review-photo">
+          <strong>Ảnh chân dung đã chọn</strong>
+          ${d.personal_photo_preview_data_url ? `<img src="${esc(d.personal_photo_preview_data_url)}" alt="Ảnh chân dung cá nhân trong bản xem trước hồ sơ">` : `<p>${esc(d.personal_photo_name || 'Chưa tải ảnh chân dung')}</p>`}
         </div>
       </div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
@@ -1850,7 +1909,7 @@ function renderRegStepContent(d, age, isMinor) {
       <p><strong>4. Quản lý tài khoản.</strong> Quyền truy cập phụ thuộc trạng thái tài khoản, vai trò được phê duyệt và quy định áp dụng. Những hành vi vi phạm có thể dẫn tới việc tạm hạn chế hoặc chấm dứt quyền truy cập theo quy trình phù hợp.</p>
       <p><strong>5. Dữ liệu cá nhân.</strong> Thông tin liên hệ, thông tin định danh, ảnh chân dung và chữ ký được xử lý để tiếp nhận, xác minh và xét duyệt hồ sơ, quản lý tài khoản và đáp ứng nghĩa vụ liên quan. Quyền truy cập được giới hạn theo nhiệm vụ; việc lưu trữ và thực hiện quyền của chủ thể dữ liệu tuân theo thông báo quyền riêng tư được công bố.</p>
       <p><strong>6. Hỗ trợ và khiếu nại.</strong> Khi cần sửa thông tin hoặc làm rõ quyết định, người đăng ký liên hệ bộ phận hỗ trợ của Trung tâm qua <a href="mailto:support@skyfirst.io.vn">support@skyfirst.io.vn</a> hoặc hotline <a href="tel:0924910210">0924 910 210</a>.</p>
-      <p class="registration-terms-note">Vui lòng đọc thêm <a href="/gioi-thieu?section=dieu-khoan-su-dung" target="_blank" rel="noopener noreferrer">Điều khoản sử dụng đầy đủ</a> và <a href="/gioi-thieu?section=chinh-sach-bao-ve-du-lieu" target="_blank" rel="noopener noreferrer">Thông báo bảo vệ dữ liệu cá nhân</a>. Nội dung điều khoản chính thức cần được Trung tâm phê duyệt và duy trì nhất quán trên website.</p>
+      <p class="registration-terms-note">Vui lòng đọc thêm <a href="/gioi-thieu?section=dieu-khoan-su-dung" target="_blank" rel="noopener noreferrer">Điều khoản sử dụng đầy đủ</a> và <a href="/gioi-thieu?section=chinh-sach-bao-ve-du-lieu" target="_blank" rel="noopener noreferrer">Thông báo bảo vệ dữ liệu cá nhân</a>.</p>
     </section>
 
     <section class="registration-confirmations" aria-labelledby="registrationConfirmTitle">
@@ -1973,7 +2032,29 @@ function bindRegStepEvents(d, age, isMinor) {
       const purpose = input.getAttribute('data-upload-purpose');
       const statusEl = document.getElementById(`status_${purpose}`);
       if (!file) return;
-      if (statusEl) statusEl.textContent = 'Đang tải tệp bảo mật lên máy chủ...';
+      if (purpose === 'personal_photo') {
+        d.personal_photo_r2_key = '';
+        d.personal_photo_r2_file_id = '';
+        d.personal_photo_name = file.name;
+        try {
+          const reader = new FileReader();
+          const source = await new Promise((resolve, reject) => { reader.onload = () => resolve(String(reader.result || '')); reader.onerror = () => reject(new Error('Không đọc được ảnh chân dung.')); reader.readAsDataURL(file); });
+          const image = await new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('Ảnh chân dung không hợp lệ hoặc không đọc được.')); img.src = source; });
+          const scale = Math.min(1, 640 / image.width, 640 / image.height);
+          const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale));
+          const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Không thể tạo bản xem trước ảnh.');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          d.personal_photo_preview_data_url = canvas.toDataURL('image/jpeg', 0.78);
+          const preview = document.getElementById('personalPhotoPreview'); const wrap = document.getElementById('personalPhotoPreviewWrap');
+          if (preview) preview.src = d.personal_photo_preview_data_url; if (wrap) wrap.hidden = false;
+        } catch (previewError) {
+          d.personal_photo_preview_data_url = '';
+          const wrap = document.getElementById('personalPhotoPreviewWrap'); if (wrap) wrap.hidden = true;
+          if (statusEl) statusEl.textContent = previewError.message;
+          input.value = ''; showToast(previewError.message, true); return;
+        }
+      }
+      if (statusEl) statusEl.textContent = AppState.lang === 'vi' ? 'Đang tải tệp bảo mật lên máy chủ...' : 'Uploading securely to the server...';
       input.disabled = true;
       try {
         const fd = new FormData();
@@ -1982,10 +2063,13 @@ function bindRegStepEvents(d, age, isMinor) {
         const res = await apiFetch('/api/account-requests/upload', { method: 'POST', body: fd });
         d[`${purpose}_r2_key`] = res.r2_key;
         d[`${purpose}_name`] = res.original_filename;
-        if (statusEl) statusEl.textContent = `✓ Đã tải bảo mật: ${res.original_filename}`;
-        showToast(`Tải tệp ${res.original_filename} thành công.`);
+        if (purpose === 'personal_photo') d.personal_photo_r2_file_id = res.id || '';
+        if (statusEl) statusEl.textContent = AppState.lang === 'vi' ? `✓ Đã tải bảo mật: ${res.original_filename}` : `✓ Uploaded securely: ${res.original_filename}`;
+        showToast(AppState.lang === 'vi' ? `Tải tệp ${res.original_filename} thành công.` : `Uploaded ${res.original_filename} successfully.`);
       } catch (err) {
-        if (statusEl) statusEl.textContent = `✕ Lỗi: ${err.message}`;
+        if (purpose === 'personal_photo') { d.personal_photo_r2_key = ''; d.personal_photo_r2_file_id = ''; }
+        if (statusEl) statusEl.textContent = `✕ ${AppState.lang === 'vi' ? 'Lỗi' : 'Error'}: ${err.message}`;
+        input.value = '';
         showToast(err.message, true);
       } finally {
         input.disabled = false;
@@ -2037,6 +2121,9 @@ function bindRegStepEvents(d, age, isMinor) {
     if (!d.id_issued_date || !d.id_issued_place) {
       return showErr('Vui lòng nhập đầy đủ Ngày cấp và Nơi cấp giấy tờ định danh.');
     }
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (d.id_issued_date > todayIso) return showErr('Ngày cấp giấy tờ không được nằm trong tương lai.');
+    if (d.id_expiry_date && (!/^\d{4}-\d{2}-\d{2}$/.test(d.id_expiry_date) || d.id_expiry_date < d.id_issued_date)) return showErr('Ngày hết hạn phải hợp lệ và không được sớm hơn ngày cấp.');
     if (!d.personal_photo_r2_key) {
       return showErr('Bước 3 bắt buộc tải lên ảnh chân dung cá nhân trước khi tiếp tục.');
     }
@@ -2180,9 +2267,16 @@ function bindRegStepEvents(d, age, isMinor) {
     btn.disabled = true;
     btn.textContent = 'Đang gửi hồ sơ lên máy chủ D1...';
     try {
+      const payloadKeys = [
+        'full_name','email','phone','gender','date_of_birth','guardian_full_name','guardian_relationship','guardian_phone','guardian_email','guardian_consent',
+        'applicant_group','education_level','institution_name','major_or_field','current_occupation','work_unit','class_name','faculty_department','position_title',
+        'id_document_type','id_number','id_issued_date','id_issued_place','id_expiry_date','personal_photo_r2_key','supporting_doc_r2_key',
+        'requested_role','registration_purpose','research_or_project_interest','experience_summary','privacy_policy_accepted','terms_accepted','data_accuracy_confirmed','signature_data'
+      ];
+      const submission = Object.fromEntries(payloadKeys.map(key => [key, d[key] ?? (['guardian_consent','privacy_policy_accepted','terms_accepted','data_accuracy_confirmed'].includes(key) ? false : '')]));
       const res = await apiFetch('/api/account-requests', {
         method: 'POST',
-        body: JSON.stringify(d)
+        body: JSON.stringify(submission)
       });
       d.submittedResult = res;
       showToast(`Đã gửi hồ sơ thành công! Mã yêu cầu: ${res.request_code}`);
@@ -2301,9 +2395,55 @@ function renderForgotPasswordView(vp, isVi) {
 // ============================================================================
 // VIEW 12: ĐĂNG NHẬP HỆ THỐNG/CMS (/dang-nhap) & CONDITIONAL ONE-TIME BOOTSTRAP
 // ============================================================================
+function renderForcePasswordChangeView(vp, isVi) {
+  if (!AppState.currentUser || !AppState.token) {
+    vp.innerHTML = `<section class="container auth-help-page"><div class="auth-help-card"><h1>${isVi?'Đổi mật khẩu':'Change password'}</h1><p>${isVi?'Vui lòng đăng nhập bằng mật khẩu tạm thời trước khi đổi mật khẩu.':'Sign in with the temporary password before changing it.'}</p><a class="btn btn-primary" href="/dang-nhap" data-nav="/dang-nhap">${isVi?'Đến trang đăng nhập':'Go to sign in'}</a></div></section>`;
+    return;
+  }
+  vp.innerHTML = `
+    <section class="container auth-help-page">
+      <div class="auth-help-card password-change-card">
+        <div class="auth-help-icon" aria-hidden="true">🔐</div>
+        <p class="eyebrow">${isVi?'BẢO VỆ TÀI KHOẢN':'ACCOUNT SECURITY'}</p>
+        <h1 class="section-title">${isVi?'Đổi mật khẩu trước khi tiếp tục':'Change your password to continue'}</h1>
+        <p class="section-desc">${isVi?'Quản trị viên đã cấp mật khẩu tạm thời cho tài khoản này. Vì an toàn, bạn phải đặt mật khẩu riêng trước khi dùng các chức năng khác.':'An administrator issued a temporary password for this account. For your security, set a new password before using other features.'}</p>
+        <form id="forcedPasswordChangeForm" class="password-change-form">
+          <div class="form-group"><label class="form-label" for="inpCurrentPassword">${isVi?'Mật khẩu hiện tại / tạm thời':'Current / temporary password'} *</label><input class="form-control" id="inpCurrentPassword" type="password" autocomplete="current-password" minlength="1" required></div>
+          <div class="form-group"><label class="form-label" for="inpNewPassword">${isVi?'Mật khẩu mới (ít nhất 12 ký tự)':'New password (at least 12 characters)'} *</label><input class="form-control" id="inpNewPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></div>
+          <div class="form-group"><label class="form-label" for="inpConfirmNewPassword">${isVi?'Nhập lại mật khẩu mới':'Confirm new password'} *</label><input class="form-control" id="inpConfirmNewPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required></div>
+          <div id="forcedPasswordChangeError" aria-live="polite"></div>
+          <button class="btn btn-primary" type="submit" id="btnChangeForcedPassword">${isVi?'Lưu mật khẩu mới':'Save new password'}</button>
+          <button class="btn btn-secondary" type="button" id="btnLogoutForcedPassword" style="margin-left:8px">${isVi?'Đăng xuất':'Sign out'}</button>
+        </form>
+        <p class="auth-help-caption">${isVi?'Không chia sẻ mật khẩu tạm thời. Quản trị viên chỉ nên bàn giao sau khi xác minh danh tính qua kênh chính thức.':'Do not share temporary passwords. Administrators should provide them only after verifying the recipient through an official channel.'}</p>
+      </div>
+    </section>`;
+  document.getElementById('forcedPasswordChangeForm')?.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const current=document.getElementById('inpCurrentPassword').value;
+    const next=document.getElementById('inpNewPassword').value;
+    const confirm=document.getElementById('inpConfirmNewPassword').value;
+    const error=document.getElementById('forcedPasswordChangeError');
+    const button=document.getElementById('btnChangeForcedPassword');
+    error.innerHTML='';
+    if(next.length<12){error.innerHTML=`<div class="alert-box alert-error">${isVi?'Mật khẩu mới cần ít nhất 12 ký tự.':'The new password must contain at least 12 characters.'}</div>`;return;}
+    if(next!==confirm){error.innerHTML=`<div class="alert-box alert-error">${isVi?'Mật khẩu nhập lại không khớp.':'The password confirmation does not match.'}</div>`;return;}
+    button.disabled=true;
+    try {
+      await apiFetch('/api/auth/change-password',{method:'POST',body:JSON.stringify({current_password:current,new_password:next,confirm_password:confirm})});
+      AppState.currentUser={...AppState.currentUser,must_change_password:false};
+      showToast(isVi?'Đã đổi mật khẩu. Bạn có thể tiếp tục sử dụng hệ thống.':'Password changed. You can now continue.');
+      navigateTo('/bang-dieu-khien',true);
+    } catch(err) {
+      error.innerHTML=`<div class="alert-box alert-error">${esc(err.message)}</div>`;
+    } finally { button.disabled=false; }
+  });
+  document.getElementById('btnLogoutForcedPassword')?.addEventListener('click',handleLogout);
+}
+
 function renderLoginView(vp, isVi) {
   if (AppState.currentUser) {
-    navigateTo('/bang-dieu-khien', true);
+    navigateTo(AppState.currentUser.must_change_password ? '/doi-mat-khau' : '/bang-dieu-khien', true);
     return;
   }
 
@@ -2362,7 +2502,7 @@ function renderLoginView(vp, isVi) {
       sessionStorage.setItem('skyfirst_token', res.token);
       sessionStorage.setItem('skyfirst_csrf', res.csrf_token);
       showToast(`Xin chào ${res.user.full_name}!`);
-      navigateTo('/bang-dieu-khien');
+      navigateTo(res.user.must_change_password ? '/doi-mat-khau' : '/bang-dieu-khien');
     } catch (err) {
       errBox.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`;
     } finally {
@@ -2452,6 +2592,9 @@ async function renderDashboardView(vp, isVi) {
             <button type="button" class="cms-nav-btn ${tab === 'cms_menus' ? 'active' : ''}" data-dash-tab="cms_menus">
               <span>🔗 Menu, Footer 4 Cột & SEO</span>
             </button>
+            <button type="button" class="cms-nav-btn ${tab === 'cms_home_layout' ? 'active' : ''}" data-dash-tab="cms_home_layout">
+              <span>🧩 ${isVi ? 'Bố cục Trang chủ' : 'Homepage Layout'}</span>
+            </button>
             <button type="button" class="cms-nav-btn ${tab === 'cms_media' ? 'active' : ''}" data-dash-tab="cms_media">
               <span>🖼️ Thư viện Media R2</span>
             </button>
@@ -2483,14 +2626,14 @@ async function renderDashboardSubTab(subVp, tab, isVi = AppState.lang === 'vi') 
     try {
       const result = await apiFetch('/api/admin/users');
       const users = result.users || [];
-      subVp.innerHTML = `<h2>${isVi ? 'Quản lý người dùng và vai trò' : 'User and role management'}</h2><p class="section-desc">${isVi ? 'Chỉ super admin có thể thay đổi trạng thái/vai trò hoặc tạo mật khẩu tạm thời. Mật khẩu chỉ được hiển thị một lần; xác minh danh tính người nhận qua kênh chính thức.' : 'Only super admins can change roles/status or issue a temporary password. Verify the recipient identity through an official channel.'}</p>${users.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>${isVi?'Người dùng':'User'}</th><th>${isVi?'Vai trò':'Role'}</th><th>${isVi?'Trạng thái':'Status'}</th><th>${isVi?'Đăng nhập gần nhất':'Last login'}</th><th>${isVi?'Thao tác':'Actions'}</th></tr></thead><tbody>${users.map(x=>`<tr><td><strong>${esc(x.full_name)}</strong><br><small>${esc(x.email)}</small><br><code>${esc(x.sfn_id||x.id)}</code></td><td><select class="form-control admin-user-role" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${['super_admin','cms_editor','reviewer','research_lead','researcher','project_manager','project_lead','examiner','member','student'].map(role=>`<option value="${role}" ${x.role===role?'selected':''}>${role}</option>`).join('')}</select></td><td><select class="form-control admin-user-status" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${[['active','Đang hoạt động'],['pending','Chờ kích hoạt'],['suspended','Tạm khóa'],['locked','Đã khóa']].map(([value,label])=>`<option value="${value}" ${x.status===value?'selected':''}>${isVi?label:value}</option>`).join('')}</select></td><td>${esc(x.last_login_at||'—')}</td><td><div class="admin-user-actions"><button type="button" class="btn btn-sm btn-primary btn-save-admin-user" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${isVi?'Lưu quyền':'Save'}</button><button type="button" class="btn btn-sm btn-secondary btn-issue-temp-password" data-user-id="${esc(x.id)}">${isVi?'Tạo mật khẩu tạm':'Issue temp password'}</button></div></td></tr>`).join('')}</tbody></table></div>` : `<div class="empty-state">${isVi?'Chưa có tài khoản người dùng.':'No user accounts found.'}</div>`}`;
+      subVp.innerHTML = `<h2>${isVi ? 'Quản lý người dùng và vai trò' : 'User and role management'}</h2><p class="section-desc">${isVi ? 'Chỉ super admin có thể thay đổi trạng thái/vai trò hoặc tạo mật khẩu tạm thời. Mật khẩu chỉ được hiển thị một lần; xác minh danh tính người nhận qua kênh chính thức.' : 'Only super admins can change roles/status or issue a temporary password. Verify the recipient identity through an official channel.'}</p>${users.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>${isVi?'Người dùng':'User'}</th><th>${isVi?'Vai trò':'Role'}</th><th>${isVi?'Trạng thái':'Status'}</th><th>${isVi?'Đăng nhập gần nhất':'Last login'}</th><th>${isVi?'Thao tác':'Actions'}</th></tr></thead><tbody>${users.map(x=>`<tr><td><strong>${esc(x.full_name)}</strong><br><small>${esc(x.email)}</small><br><code>${esc(x.sfn_id||x.id)}</code></td><td><select class="form-control admin-user-role" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${['super_admin','cms_editor','reviewer','research_lead','researcher','project_manager','project_lead','examiner','member','student'].map(role=>`<option value="${role}" ${x.role===role?'selected':''}>${role}</option>`).join('')}</select></td><td><select class="form-control admin-user-status" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${[['active','Đang hoạt động'],['pending','Chờ kích hoạt'],['suspended','Tạm khóa'],['locked','Đã khóa']].map(([value,label])=>`<option value="${value}" ${x.status===value?'selected':''}>${isVi?label:value}</option>`).join('')}</select></td><td>${esc(x.last_login_at||'—')}</td><td><div class="admin-user-actions"><button type="button" class="btn btn-sm btn-primary btn-save-admin-user" data-user-id="${esc(x.id)}" ${x.id===u.id?'disabled':''}>${isVi?'Lưu quyền':'Save'}</button><button type="button" class="btn btn-sm btn-secondary btn-issue-temp-password" data-user-id="${esc(x.id)}" ${x.id===u.id || x.status!=='active'?'disabled':''} title="${x.id===u.id?(isVi?'Không thể tự cấp mật khẩu tạm':'Cannot issue a password to yourself'):x.status!=='active'?(isVi?'Chỉ áp dụng cho tài khoản đang hoạt động':'Only available for active accounts'):(isVi?'Tạo mật khẩu tạm một lần':'Issue one-time temporary password')}">${isVi?'Tạo mật khẩu tạm':'Issue temp password'}</button></div></td></tr>`).join('')}</tbody></table></div>` : `<div class="empty-state">${isVi?'Chưa có tài khoản người dùng.':'No user accounts found.'}</div>`}`;
       subVp.querySelectorAll('.btn-save-admin-user').forEach(btn=>btn.addEventListener('click',async()=>{const id=btn.dataset.userId;const role=subVp.querySelector(`.admin-user-role[data-user-id="${CSS.escape(id)}"]`)?.value;const status=subVp.querySelector(`.admin-user-status[data-user-id="${CSS.escape(id)}"]`)?.value;btn.disabled=true;try{await apiFetch(`/api/admin/users/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify({role,status})});showToast(isVi?'Đã cập nhật quyền và trạng thái người dùng.':'User role and status updated.');await renderDashboardSubTab(subVp,'users',isVi);}catch(err){showToast(err.message,true);btn.disabled=false;}}));
-      subVp.querySelectorAll('.btn-issue-temp-password').forEach(btn=>btn.addEventListener('click',async()=>{const id=btn.dataset.userId;if(!window.confirm(isVi?'Tạo mật khẩu tạm mới, kích hoạt tài khoản và thu hồi các phiên cũ? Chỉ tiếp tục sau khi đã xác minh danh tính người nhận.':'Issue a new temporary password, activate the account and revoke old sessions? Continue only after verifying the recipient identity.'))return;btn.disabled=true;try{const result=await apiFetch(`/api/admin/users/${encodeURIComponent(id)}/temporary-password`,{method:'POST',body:JSON.stringify({})});window.alert(`${isVi?'MẬT KHẨU TẠM THỜI — CHỈ HIỂN THỊ MỘT LẦN':'TEMPORARY PASSWORD — SHOWN ONCE'}
+      subVp.querySelectorAll('.btn-issue-temp-password').forEach(btn=>btn.addEventListener('click',async()=>{const id=btn.dataset.userId;if(!window.confirm(isVi?'Tạo mật khẩu tạm mới cho tài khoản đang hoạt động và thu hồi các phiên cũ? Tài khoản không được tự động kích hoạt. Chỉ tiếp tục sau khi đã xác minh danh tính người nhận.':'Issue a new temporary password for this active account and revoke old sessions? This does not activate an account. Continue only after verifying the recipient identity.'))return;btn.disabled=true;try{const result=await apiFetch(`/api/admin/users/${encodeURIComponent(id)}/temporary-password`,{method:'POST',body:JSON.stringify({})});window.alert(`${isVi?'MẬT KHẨU TẠM THỜI — CHỈ HIỂN THỊ MỘT LẦN':'TEMPORARY PASSWORD — SHOWN ONCE'}
 
 ${result.full_name} (${result.email})
 ${result.temporary_password}
 
-${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua nhóm chat hoặc email không an toàn.':'Share only through a verified channel. Do not send this password in group chat or insecure email.'}`);showToast(isVi?'Đã tạo mật khẩu tạm, tài khoản được kích hoạt và các phiên cũ bị thu hồi.':'Temporary password issued; account activated and old sessions revoked.');await renderDashboardSubTab(subVp,'users',isVi);}catch(err){showToast(err.message,true);btn.disabled=false;}}));
+${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua nhóm chat hoặc email không an toàn.':'Share only through a verified channel. Do not send this password in group chat or insecure email.'}`);showToast(isVi?'Đã tạo mật khẩu tạm cho tài khoản đang hoạt động và thu hồi các phiên cũ.':'Temporary password issued for the active account; old sessions revoked.');await renderDashboardSubTab(subVp,'users',isVi);}catch(err){showToast(err.message,true);btn.disabled=false;}}));
     } catch (err) { subVp.innerHTML = `<div class="alert-box alert-error">${esc(err.message)}</div>`; }
     return;
   }
@@ -2857,6 +3000,26 @@ ${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua n
     return;
   }
 
+  if (tab === 'cms_home_layout') {
+    if (!['super_admin','cms_editor'].includes(u.role)) { subVp.innerHTML = `<div class="alert-box alert-error">${isVi?'Bạn không có quyền chỉnh sửa bố cục trang chủ.':'You do not have permission to edit the homepage layout.'}</div>`; return; }
+    const fallback = [
+      {id:'hero',enabled:true,order:1},{id:'pillars',enabled:true,order:2},{id:'programs',enabled:true,order:3},
+      {id:'assessments',enabled:true,order:4},{id:'publications',enabled:true,order:5},{id:'news',enabled:true,order:6},
+      {id:'partners',enabled:true,order:7},{id:'cooperation',enabled:true,order:8},{id:'longform',enabled:true,order:9}
+    ];
+    const labels = isVi ? {hero:'Hero / Nhận diện',pillars:'Lĩnh vực hoạt động',programs:'Nghiên cứu & dự án',assessments:'Khảo thí đang mở',publications:'Công bố & tài liệu',news:'Tin tức & hoạt động',partners:'Đối tác đã xác minh',cooperation:'Lời mời hợp tác',longform:'Nội dung chuyên sâu'} : {hero:'Hero / Identity',pillars:'Core areas',programs:'Research & projects',assessments:'Available assessments',publications:'Publications & resources',news:'News & activities',partners:'Verified partners',cooperation:'Cooperation invitation',longform:'In-depth content'};
+    let draft = (Array.isArray(AppState.settings.homepage_layout) ? AppState.settings.homepage_layout : fallback).map(x=>({...x})).sort((a,b)=>Number(a.order||0)-Number(b.order||0));
+    const renderEditor = () => {
+      subVp.innerHTML = `<div class="home-layout-editor"><div class="section-head"><div><h2>${isVi?'Trình quản lý bố cục Trang chủ':'Homepage layout manager'}</h2><p class="section-desc">${isVi?'Bật/tắt và sắp xếp các khối hiển thị. Hero luôn được giữ để bảo đảm nhận diện; thay đổi được lưu vào cấu hình CMS/D1.':'Enable, disable and reorder homepage sections. The hero stays enabled to preserve site identity; changes are saved to CMS/D1 settings.'}</p></div><a class="btn btn-secondary" href="/" data-nav="/">${isVi?'Xem trang chủ':'View homepage'}</a></div><div class="home-layout-list">${draft.map((item,index)=>`<div class="home-layout-row" data-layout-id="${esc(item.id)}"><div class="home-layout-rank">${index+1}</div><label class="home-layout-name"><strong>${esc(labels[item.id]||item.id)}</strong><small>${esc(item.id)}</small></label><label class="home-layout-toggle"><input type="checkbox" data-layout-enabled="${esc(item.id)}" ${item.id==='hero'?'checked disabled':item.enabled!==false?'checked':''}><span>${isVi?'Hiển thị':'Visible'}</span></label><div class="home-layout-controls"><button type="button" class="btn btn-sm btn-secondary" data-layout-move="up" data-layout-id="${esc(item.id)}" ${index===0?'disabled':''} aria-label="${isVi?'Di chuyển lên':'Move up'}">↑</button><button type="button" class="btn btn-sm btn-secondary" data-layout-move="down" data-layout-id="${esc(item.id)}" ${item.id==='hero'||index===draft.length-1?'disabled':''} aria-label="${isVi?'Di chuyển xuống':'Move down'}">↓</button></div></div>`).join('')}</div><div class="home-layout-actions"><button type="button" class="btn btn-primary" id="btnSaveHomeLayout">${isVi?'Lưu bố cục':'Save layout'}</button><button type="button" class="btn btn-secondary" id="btnResetHomeLayout">${isVi?'Khôi phục bố cục mặc định':'Restore default layout'}</button><span class="home-layout-status" id="homeLayoutStatus" role="status" aria-live="polite"></span></div></div>`;
+      subVp.querySelectorAll('[data-layout-enabled]').forEach(input=>input.addEventListener('change',()=>{const item=draft.find(x=>x.id===input.dataset.layoutEnabled);if(item&&item.id!=='hero')item.enabled=input.checked;}));
+      subVp.querySelectorAll('[data-layout-move]').forEach(btn=>btn.addEventListener('click',()=>{const i=draft.findIndex(x=>x.id===btn.dataset.layoutId),j=btn.dataset.layoutMove==='up'?i-1:i+1;if(i<0||j<0||j>=draft.length)return;[draft[i],draft[j]]=[draft[j],draft[i]];draft=draft.map((x,n)=>({...x,order:n+1}));renderEditor();}));
+      document.getElementById('btnResetHomeLayout')?.addEventListener('click',()=>{draft=fallback.map(x=>({...x}));renderEditor();});
+      document.getElementById('btnSaveHomeLayout')?.addEventListener('click',async()=>{const button=document.getElementById('btnSaveHomeLayout'),status=document.getElementById('homeLayoutStatus');button.disabled=true;status.textContent=isVi?'Đang lưu…':'Saving…';try{const normalized=draft.map((x,index)=>({id:x.id,enabled:x.id==='hero'?true:x.enabled!==false,order:index+1}));await apiFetch('/api/cms/settings',{method:'POST',body:JSON.stringify({settings:{homepage_layout:normalized}})});AppState.settings.homepage_layout=normalized;status.textContent=isVi?'Đã lưu bố cục vào CMS/D1.':'Layout saved to CMS/D1.';showToast(status.textContent); }catch(error){status.textContent=isVi?'Không lưu được. Vui lòng thử lại.':'Could not save. Please try again.';showToast(error.message,true);}finally{button.disabled=false;}});
+    };
+    renderEditor();
+    return;
+  }
+
   if (tab === 'cms_menus') {
     const menus = d.cms?.menus || [];
     subVp.innerHTML = `
@@ -2892,7 +3055,8 @@ ${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua n
           <form id="cmsSettingsForm" style="margin-top:10px;">
             <div class="form-group"><label class="form-label">Tiêu đề Banner (VI)</label><input id="setHeroTitleVi" class="form-control" value="${esc(AppState.settings.hero_title_vi || "")}"></div>
             <div class="form-group"><label class="form-label">Tiêu đề Banner (EN)</label><input id="setHeroTitleEn" class="form-control" value="${esc(AppState.settings.hero_title_en || "")}"></div>
-            <div class="grid-2"><div class="form-group"><label class="form-label">Mô tả Banner (VI)</label><textarea id="setHeroSubVi" class="form-control" rows="3">${esc(AppState.settings.hero_subtitle_vi || "")}</textarea></div><div class="form-group"><label class="form-label">Hero subtitle (EN)</label><textarea id="setHeroSubEn" class="form-control" rows="3">${esc(AppState.settings.hero_subtitle_en || "")}</textarea></div></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">Câu phụ đề (VI)</label><textarea id="setHeroSubVi" class="form-control" rows="2">${esc(AppState.settings.hero_subtitle_vi || "")}</textarea></div><div class="form-group"><label class="form-label">Hero subtitle (EN)</label><textarea id="setHeroSubEn" class="form-control" rows="2">${esc(AppState.settings.hero_subtitle_en || "")}</textarea></div></div>
+            <div class="grid-2"><div class="form-group"><label class="form-label">Mô tả bổ sung (VI)</label><textarea id="setHeroDescVi" class="form-control" rows="2">${esc(AppState.settings.hero_description_vi || "")}</textarea></div><div class="form-group"><label class="form-label">Hero supporting description (EN)</label><textarea id="setHeroDescEn" class="form-control" rows="2">${esc(AppState.settings.hero_description_en || "")}</textarea></div></div>
             <button type="submit" class="btn btn-primary btn-sm">Lưu Cấu hình Trang chủ vào D1</button>
           </form>
         </div>
@@ -2940,7 +3104,9 @@ ${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua n
               hero_title_vi: document.getElementById("setHeroTitleVi").value.trim(),
               hero_title_en: document.getElementById("setHeroTitleEn").value.trim(),
               hero_subtitle_vi: document.getElementById("setHeroSubVi").value.trim(),
-              hero_subtitle_en: document.getElementById("setHeroSubEn").value.trim()
+              hero_subtitle_en: document.getElementById("setHeroSubEn").value.trim(),
+              hero_description_vi: document.getElementById("setHeroDescVi").value.trim(),
+              hero_description_en: document.getElementById("setHeroDescEn").value.trim()
             }
           })
         });
@@ -3203,118 +3369,88 @@ ${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua n
   }
 
   if (tab === 'research_projects') {
-    const canManage = ['super_admin', 'research_lead', 'project_manager', 'project_lead', 'cms_editor'].includes(u.role);
+    const canManage = ['super_admin', 'research_lead', 'researcher', 'project_manager', 'project_lead'].includes(u.role);
+    const research = d.research_studies || [];
+    const projects = d.community_projects || [];
+    const tasks = d.tasks || [];
+    const allPrograms = [
+      ...research.map(x => ({...x, _type:'research'})),
+      ...projects.map(x => ({...x, _type:'project'}))
+    ];
     subVp.innerHTML = `
-      <h2 style="margin-bottom:14px;color:var(--navy-900);">Quản lý Nghiên cứu, Dự án Cộng đồng & Nhiệm vụ Tiến độ Thực</h2>
+      <div class="section-head"><div><h2>${isVi?'Quản lý Nghiên cứu, Dự án và Nhiệm vụ':'Research, projects and task management'}</h2><p class="section-desc">${isVi?'Dữ liệu được lưu ở D1. Xóa chương trình bị chặn khi còn nhiệm vụ liên kết để tránh mất lịch sử.':'Records are stored in D1. Deleting a program is blocked while linked tasks remain to prevent accidental data loss.'}</p></div></div>
       ${canManage ? `
         <div class="grid-2" style="margin-bottom:20px;">
           <div class="card">
-            <h3>+ Tạo Đề tài Nghiên cứu / Dự án Mới</h3>
+            <h3 id="programFormTitle">${isVi?'Tạo hoặc cập nhật đề tài / dự án':'Create or update a study / project'}</h3>
             <form id="newProgramForm" style="margin-top:10px;">
-              <div class="form-group">
-                <label class="form-label">Phân loại</label>
-                <select id="progType" class="form-control">
-                  <option value="research">Đề tài Nghiên cứu Khoa học</option>
-                  <option value="project">Dự án Phát triển Cộng đồng</option>
-                </select>
-              </div>
-              <div class="form-group"><label class="form-label">Mã số (Code) *</label><input id="progCode" class="form-control" placeholder="RES-2026-01" required></div>
-              <div class="form-group"><label class="form-label">Tên chương trình (VI) *</label><input id="progTitle" class="form-control" required></div>
-              <div class="form-group"><label class="form-label">Tóm tắt / Mục tiêu *</label><textarea id="progSummary" class="form-control" rows="2" required></textarea></div>
-              <button type="submit" class="btn btn-primary btn-sm">Lưu vào D1</button>
+              <input id="progId" type="hidden" value="">
+              <div class="form-group"><label class="form-label" for="progType">${isVi?'Phân loại':'Type'}</label><select id="progType" class="form-control"><option value="research">${isVi?'Đề tài nghiên cứu khoa học':'Research study'}</option><option value="project">${isVi?'Dự án phát triển cộng đồng':'Community project'}</option></select></div>
+              <div class="form-group"><label class="form-label" for="progCode">${isVi?'Mã số':'Code'} *</label><input id="progCode" class="form-control" maxlength="80" placeholder="RES-2026-01" required></div>
+              <div class="grid-2"><div class="form-group"><label class="form-label" for="progTitle">${isVi?'Tên chương trình (VI)':'Title (VI)'} *</label><input id="progTitle" class="form-control" maxlength="250" required></div><div class="form-group"><label class="form-label" for="progTitleEn">${isVi?'Tên chương trình (EN)':'Title (EN)'}</label><input id="progTitleEn" class="form-control" maxlength="250"></div></div>
+              <div class="grid-2"><div class="form-group"><label class="form-label" for="progSummary">${isVi?'Tóm tắt / mục tiêu (VI)':'Summary / objective (VI)'} *</label><textarea id="progSummary" class="form-control" rows="3" required></textarea></div><div class="form-group"><label class="form-label" for="progSummaryEn">${isVi?'Tóm tắt / mục tiêu (EN)':'Summary / objective (EN)'}</label><textarea id="progSummaryEn" class="form-control" rows="3"></textarea></div></div>
+              <div class="grid-2"><div class="form-group"><label class="form-label" for="progStatus">${isVi?'Trạng thái':'Status'}</label><select id="progStatus" class="form-control"><option value="Chuẩn bị">${isVi?'Chuẩn bị':'Preparation'}</option><option value="Đề xuất">${isVi?'Đề xuất':'Proposed'}</option><option value="Đang thực hiện">${isVi?'Đang thực hiện':'In progress'}</option><option value="Hoàn thành">${isVi?'Hoàn thành':'Completed'}</option><option value="Tạm hoãn">${isVi?'Tạm hoãn':'On hold'}</option><option value="Đã công bố">${isVi?'Đã công bố':'Published'}</option></select></div><div class="form-group"><label class="form-label" for="progProgress">${isVi?'Tiến độ (%)':'Progress (%)'}</label><input id="progProgress" type="number" class="form-control" min="0" max="100" step="1" value="0"></div></div>
+              <label class="checkbox-line"><input type="checkbox" id="progIsPublic" checked> ${isVi?'Công khai khi được phép':'Publicly visible when approved'}</label>
+              <div class="home-layout-actions"><button type="submit" class="btn btn-primary" id="btnSaveProgram">${isVi?'Lưu chương trình':'Save program'}</button><button type="button" class="btn btn-secondary" id="btnResetProgram">${isVi?'Làm mới biểu mẫu':'Reset form'}</button></div>
             </form>
           </div>
           <div class="card">
-            <h3>+ Thêm / Cập nhật Nhiệm vụ (Tự động tính % Tiến độ)</h3>
+            <h3 id="taskFormTitle">${isVi?'Tạo hoặc cập nhật nhiệm vụ':'Create or update a task'}</h3>
             <form id="newTaskForm" style="margin-top:10px;">
-              <div class="grid-2">
-                <div class="form-group">
-                  <label class="form-label">Loại chương trình</label>
-                  <select id="tkParentType" class="form-control">
-                    <option value="research">Nghiên cứu (research)</option>
-                    <option value="project">Dự án (project)</option>
-                  </select>
-                </div>
-                <div class="form-group"><label class="form-label">Mã Đề tài/Dự án *</label><input id="tkParentId" class="form-control" placeholder="RES-2026-01" required></div>
-              </div>
-              <div class="form-group"><label class="form-label">Tên nhiệm vụ *</label><input id="tkTitle" class="form-control" required></div>
-              <div class="grid-2">
-                <div class="form-group"><label class="form-label">Trọng số</label><input id="tkWeight" type="number" class="form-control" value="50"></div>
-                <div class="form-group">
-                  <label class="form-label">Trạng thái</label>
-                  <select id="tkStatus" class="form-control">
-                    <option value="todo">Chưa bắt đầu (0%)</option>
-                    <option value="in_progress">Đang thực hiện (50%)</option>
-                    <option value="completed">Đã hoàn thành (100%)</option>
-                  </select>
-                </div>
-              </div>
-              <button type="submit" class="btn btn-emerald btn-sm">Lưu Nhiệm vụ & Tính Tiến độ</button>
+              <input id="tkId" type="hidden" value="">
+              <div class="grid-2"><div class="form-group"><label class="form-label" for="tkParentType">${isVi?'Loại chương trình':'Program type'}</label><select id="tkParentType" class="form-control"><option value="research">${isVi?'Nghiên cứu':'Research'}</option><option value="project">${isVi?'Dự án':'Project'}</option></select></div><div class="form-group"><label class="form-label" for="tkParentId">${isVi?'Mã đề tài / dự án':'Study / project code'} *</label><input id="tkParentId" class="form-control" maxlength="100" placeholder="RES-2026-01" required></div></div>
+              <div class="form-group"><label class="form-label" for="tkTitle">${isVi?'Tên nhiệm vụ':'Task title'} *</label><input id="tkTitle" class="form-control" maxlength="250" required></div>
+              <div class="form-group"><label class="form-label" for="tkDescription">${isVi?'Mô tả nhiệm vụ':'Task description'}</label><textarea id="tkDescription" class="form-control" rows="2"></textarea></div>
+              <div class="grid-2"><div class="form-group"><label class="form-label" for="tkWeight">${isVi?'Trọng số':'Weight'}</label><input id="tkWeight" type="number" min="1" max="1000" class="form-control" value="1" required></div><div class="form-group"><label class="form-label" for="tkDueDate">${isVi?'Hạn hoàn thành':'Due date'}</label><input id="tkDueDate" type="date" class="form-control"></div></div>
+              <div class="form-group"><label class="form-label" for="tkStatus">${isVi?'Trạng thái':'Status'}</label><select id="tkStatus" class="form-control"><option value="todo">${isVi?'Chưa bắt đầu':'To do'}</option><option value="in_progress">${isVi?'Đang thực hiện':'In progress'}</option><option value="review">${isVi?'Chờ rà soát':'In review'}</option><option value="completed">${isVi?'Đã hoàn thành':'Completed'}</option></select></div>
+              <div class="home-layout-actions"><button type="submit" class="btn btn-emerald btn-sm" id="btnSaveTask">${isVi?'Lưu nhiệm vụ & tính tiến độ':'Save task & recalculate progress'}</button><button type="button" class="btn btn-secondary btn-sm" id="btnResetTask">${isVi?'Làm mới':'Reset'}</button></div>
             </form>
           </div>
         </div>
       ` : ''}
-      <table class="data-table">
-        <thead><tr><th>Loại & Mã</th><th>Nhiệm vụ</th><th>Trọng số</th><th>Trạng thái</th></tr></thead>
-        <tbody>
-          ${(d.tasks || []).map(tk => `
-            <tr>
-              <td><code>${esc(tk.parent_type)}:${esc(tk.parent_id)}</code></td>
-              <td><strong>${esc(tk.title)}</strong></td>
-              <td>${Number(tk.weight)}</td>
-              <td><span class="status-pill status-blue">${esc(tk.status)}</span></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+      <section class="card" style="margin-bottom:18px;"><h3>${isVi?'Danh sách đề tài và dự án':'Studies and projects'}</h3>
+        ${allPrograms.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>${isVi?'Loại / Mã':'Type / Code'}</th><th>${isVi?'Tên chương trình':'Program'}</th><th>${isVi?'Trạng thái':'Status'}</th><th>${isVi?'Tiến độ':'Progress'}</th>${canManage?`<th>${isVi?'Thao tác':'Actions'}</th>`:''}</tr></thead><tbody>${allPrograms.map(p=>`<tr><td><span class="card-tag">${p._type==='research'?(isVi?'Nghiên cứu':'Research'):(isVi?'Dự án':'Project')}</span><br><code>${esc(p.code)}</code></td><td><strong>${esc(isVi?p.title_vi:(p.title_en||p.title_vi))}</strong></td><td>${esc(p.status||'—')}</td><td>${Math.min(100,Math.max(0,Number(p.progress_percent||0)))}%</td>${canManage?`<td><div class="admin-user-actions"><button type="button" class="btn btn-sm btn-secondary" data-edit-program="${esc(p.id)}" data-program-type="${p._type}">${isVi?'Sửa':'Edit'}</button><button type="button" class="btn btn-sm btn-danger" data-delete-program="${esc(p.id)}" data-program-type="${p._type}">${isVi?'Xóa':'Delete'}</button></div></td>`:''}</tr>`).join('')}</tbody></table></div>`:`<div class="empty-state"><p>${isVi?'Chưa có đề tài hoặc dự án trong dữ liệu hệ thống.':'No research studies or projects are currently recorded.'}</p></div>`}
+      </section>
+      <section class="card"><h3>${isVi?'Danh sách nhiệm vụ':'Tasks'}</h3>
+        ${tasks.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>${isVi?'Chương trình':'Program'}</th><th>${isVi?'Nhiệm vụ':'Task'}</th><th>${isVi?'Trọng số':'Weight'}</th><th>${isVi?'Hạn':'Due'}</th><th>${isVi?'Trạng thái':'Status'}</th>${canManage?`<th>${isVi?'Thao tác':'Actions'}</th>`:''}</tr></thead><tbody>${tasks.map(tk=>`<tr><td><code>${esc(tk.parent_type)}:${esc(tk.parent_id)}</code></td><td><strong>${esc(tk.title)}</strong>${tk.description?`<br><small>${esc(tk.description)}</small>`:''}</td><td>${Number(tk.weight)}</td><td>${esc(tk.due_date||'—')}</td><td><span class="status-pill status-blue">${esc(tk.status)}</span></td>${canManage?`<td><div class="admin-user-actions"><button type="button" class="btn btn-sm btn-secondary" data-edit-task="${esc(tk.id)}">${isVi?'Sửa':'Edit'}</button><button type="button" class="btn btn-sm btn-danger" data-delete-task="${esc(tk.id)}">${isVi?'Xóa':'Delete'}</button></div></td>`:''}</tr>`).join('')}</tbody></table></div>`:`<div class="empty-state"><p>${isVi?'Chưa có nhiệm vụ phù hợp với tài khoản này.':'No tasks are available for this account.'}</p></div>`}
+      </section>
     `;
 
-    document.getElementById('newProgramForm')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      const type = document.getElementById('progType').value;
-      const code = document.getElementById('progCode').value.trim();
-      const title = document.getElementById('progTitle').value.trim();
-      const summary = document.getElementById('progSummary').value.trim();
-      try {
-        await apiFetch(type === 'research' ? '/api/research' : '/api/projects', {
-          method: 'POST',
-          body: JSON.stringify({
-            id: code,
-            code,
-            slug: code.toLowerCase(),
-            title_vi: title,
-            summary_vi: summary,
-            objective_vi: summary,
-            is_public: true
-          })
-        });
-        await loadInitialData();
-        showToast('Đã lưu chương trình vào D1!');
-        renderRoute();
-      } catch (err) {
-        showToast(err.message, true);
-      }
+    const resetProgram = () => {
+      ['progId','progCode','progTitle','progTitleEn','progSummary','progSummaryEn'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      document.getElementById('progType').value='research';document.getElementById('progStatus').value='Chuẩn bị';document.getElementById('progProgress').value='0';document.getElementById('progIsPublic').checked=true;
+      const title=document.getElementById('programFormTitle'),button=document.getElementById('btnSaveProgram');if(title)title.textContent=isVi?'Tạo hoặc cập nhật đề tài / dự án':'Create or update a study / project';if(button)button.textContent=isVi?'Lưu chương trình':'Save program';
+    };
+    const resetTask = () => {
+      ['tkId','tkParentId','tkTitle','tkDescription','tkDueDate'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      document.getElementById('tkParentType').value='research';document.getElementById('tkWeight').value='1';document.getElementById('tkStatus').value='todo';
+      const title=document.getElementById('taskFormTitle'),button=document.getElementById('btnSaveTask');if(title)title.textContent=isVi?'Tạo hoặc cập nhật nhiệm vụ':'Create or update a task';if(button)button.textContent=isVi?'Lưu nhiệm vụ & tính tiến độ':'Save task & recalculate progress';
+    };
+    document.getElementById('btnResetProgram')?.addEventListener('click',resetProgram);
+    document.getElementById('btnResetTask')?.addEventListener('click',resetTask);
+    subVp.querySelectorAll('[data-edit-program]').forEach(btn=>btn.addEventListener('click',()=>{
+      const type=btn.dataset.programType,id=btn.dataset.editProgram,p=(type==='research'?research:projects).find(x=>x.id===id);if(!p)return;
+      document.getElementById('progId').value=p.id;document.getElementById('progType').value=type;document.getElementById('progCode').value=p.code||'';document.getElementById('progTitle').value=p.title_vi||'';document.getElementById('progTitleEn').value=p.title_en||'';document.getElementById('progSummary').value=p.summary_vi||p.objective_vi||'';document.getElementById('progSummaryEn').value=p.summary_en||p.objective_en||'';document.getElementById('progStatus').value=p.status||'Chuẩn bị';document.getElementById('progProgress').value=String(Math.min(100,Math.max(0,Number(p.progress_percent||0))));document.getElementById('progIsPublic').checked=Number(p.is_public??1)!==0;
+      document.getElementById('programFormTitle').textContent=isVi?'Cập nhật chương trình':'Update program';document.getElementById('btnSaveProgram').textContent=isVi?'Lưu thay đổi':'Save changes';document.getElementById('newProgramForm').scrollIntoView({behavior:'smooth',block:'center'});
+    }));
+    subVp.querySelectorAll('[data-delete-program]').forEach(btn=>btn.addEventListener('click',async()=>{
+      const type=btn.dataset.programType,id=btn.dataset.deleteProgram;if(!window.confirm(isVi?'Xóa chương trình này? Nếu còn nhiệm vụ liên kết, hệ thống sẽ từ chối để tránh mất dữ liệu.':'Delete this program? The server will refuse if linked tasks remain.'))return;
+      btn.disabled=true;try{await apiFetch(`/api/${type==='research'?'research':'projects'}/${encodeURIComponent(id)}`,{method:'DELETE'});showToast(isVi?'Đã xóa chương trình.':'Program deleted.');renderRoute();}catch(error){showToast(error.message,true);btn.disabled=false;}
+    }));
+    document.getElementById('newProgramForm')?.addEventListener('submit',async e=>{
+      e.preventDefault();const submit=e.submitter||document.getElementById('btnSaveProgram');submit.disabled=true;
+      const type=document.getElementById('progType').value,code=document.getElementById('progCode').value.trim(),id=document.getElementById('progId').value.trim()||code,title=document.getElementById('progTitle').value.trim(),titleEn=document.getElementById('progTitleEn').value.trim()||title,summary=document.getElementById('progSummary').value.trim(),summaryEn=document.getElementById('progSummaryEn').value.trim()||summary;
+      try{await apiFetch(type==='research'?'/api/research':'/api/projects',{method:'POST',body:JSON.stringify({id,code,slug:code.toLowerCase(),title_vi:title,title_en:titleEn,summary_vi:summary,summary_en:summaryEn,objective_vi:summary,objective_en:summaryEn,status:document.getElementById('progStatus').value,progress_percent:Number(document.getElementById('progProgress').value||0),is_public:document.getElementById('progIsPublic').checked})});showToast(isVi?'Đã lưu chương trình vào D1.':'Program saved to D1.');renderRoute();}catch(error){showToast(error.message,true);submit.disabled=false;}
     });
-
-    document.getElementById('newTaskForm')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      try {
-        const res = await apiFetch('/api/tasks', {
-          method: 'POST',
-          body: JSON.stringify({
-            parent_type: document.getElementById('tkParentType').value,
-            parent_id: document.getElementById('tkParentId').value.trim(),
-            title: document.getElementById('tkTitle').value.trim(),
-            weight: Number(document.getElementById('tkWeight').value || 1),
-            status: document.getElementById('tkStatus').value
-          })
-        });
-        await loadInitialData();
-        showToast(`Đã lưu nhiệm vụ! Tiến độ chương trình hiện tại: ${res.parent_progress_percent}%`);
-        renderRoute();
-      } catch (err) {
-        showToast(err.message, true);
-      }
+    subVp.querySelectorAll('[data-edit-task]').forEach(btn=>btn.addEventListener('click',()=>{
+      const tk=tasks.find(x=>x.id===btn.dataset.editTask);if(!tk)return;document.getElementById('tkId').value=tk.id;document.getElementById('tkParentType').value=tk.parent_type;document.getElementById('tkParentId').value=tk.parent_id;document.getElementById('tkTitle').value=tk.title||'';document.getElementById('tkDescription').value=tk.description||'';document.getElementById('tkWeight').value=String(tk.weight||1);document.getElementById('tkDueDate').value=tk.due_date||'';document.getElementById('tkStatus').value=tk.status||'todo';document.getElementById('taskFormTitle').textContent=isVi?'Cập nhật nhiệm vụ':'Update task';document.getElementById('btnSaveTask').textContent=isVi?'Lưu thay đổi':'Save changes';document.getElementById('newTaskForm').scrollIntoView({behavior:'smooth',block:'center'});
+    }));
+    subVp.querySelectorAll('[data-delete-task]').forEach(btn=>btn.addEventListener('click',async()=>{
+      if(!window.confirm(isVi?'Xóa nhiệm vụ này và tính lại tiến độ chương trình?':'Delete this task and recalculate program progress?'))return;btn.disabled=true;try{const res=await apiFetch(`/api/tasks/${encodeURIComponent(btn.dataset.deleteTask)}`,{method:'DELETE'});showToast(isVi?`Đã xóa nhiệm vụ. Tiến độ còn ${res.parent_progress_percent}%.`:`Task deleted. Progress is now ${res.parent_progress_percent}%.`);renderRoute();}catch(error){showToast(error.message,true);btn.disabled=false;}
+    }));
+    document.getElementById('newTaskForm')?.addEventListener('submit',async e=>{
+      e.preventDefault();const submit=e.submitter||document.getElementById('btnSaveTask');submit.disabled=true;
+      try{const res=await apiFetch('/api/tasks',{method:'POST',body:JSON.stringify({id:document.getElementById('tkId').value.trim()||undefined,parent_type:document.getElementById('tkParentType').value,parent_id:document.getElementById('tkParentId').value.trim(),title:document.getElementById('tkTitle').value.trim(),description:document.getElementById('tkDescription').value.trim(),weight:Number(document.getElementById('tkWeight').value||1),due_date:document.getElementById('tkDueDate').value||null,status:document.getElementById('tkStatus').value})});showToast(isVi?`Đã lưu nhiệm vụ. Tiến độ chương trình: ${res.parent_progress_percent}%.`:`Task saved. Program progress: ${res.parent_progress_percent}%.`);renderRoute();}catch(error){showToast(error.message,true);submit.disabled=false;}
     });
     return;
   }
@@ -3350,6 +3486,17 @@ ${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua n
     const rooms = AppState.chatRooms;
     const activeRoomId = AppState.activeChatRoomId;
     const selectedRoom = rooms.find(r => r.id === activeRoomId) || null;
+    const chatFileSize = bytes => bytes < 1024 ? `${bytes} B` : bytes < 1024*1024 ? `${(bytes/1024).toFixed(1)} KB` : `${(bytes/1024/1024).toFixed(1)} MB`;
+    const downloadChatFile = async (mediaId, filename, button) => {
+      if (!mediaId) return;
+      button.disabled = true;
+      try {
+        const headers = new Headers(); if (AppState.token) headers.set('Authorization', `Bearer ${AppState.token}`); if (AppState.csrfToken) headers.set('X-CSRF-Token', AppState.csrfToken);
+        const response = await fetch(`/api/media/${encodeURIComponent(mediaId)}`, {headers, cache:'no-store'});
+        if (!response.ok) { let message = `Không thể tải tệp (HTTP ${response.status}).`; try { const body=await response.json(); message=body.error||body.message||message; } catch {} throw new Error(message); }
+        const blob = await response.blob(), objectUrl = URL.createObjectURL(blob), anchor = document.createElement('a'); anchor.href=objectUrl; anchor.download=String(filename||'tep-chat').replace(/[\\/\\0-\\x1f]/g,'_'); document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);
+      } catch (err) { showToast(err.message, true); } finally { button.disabled = false; }
+    };
     subVp.innerHTML = `
       <section class="chat-admin-module">
         <div class="chat-module-heading">
@@ -3385,7 +3532,7 @@ ${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua n
                 ${rooms.map(r => `
                   <button type="button" class="chat-room-item ${r.id === activeRoomId ? 'active' : ''}" data-room-id="${esc(r.id)}">
                     <span class="chat-room-avatar" aria-hidden="true">${r.room_type === 'direct' ? '1:1' : '👥'}</span>
-                    <span class="chat-room-summary"><strong>${esc(r.name || (r.room_type === 'direct' ? 'Trò chuyện riêng' : 'Nhóm chat'))}</strong><small>${r.room_type === 'direct' ? 'Trò chuyện riêng 1–1' : `Nhóm · ${Number(r.member_count || 1)} thành viên`} · ${Number(r.message_count || 0)} tin nhắn</small></span>
+                    <span class="chat-room-summary"><strong>${esc(r.name || (r.room_type === 'direct' ? 'Trò chuyện riêng' : 'Nhóm chat'))}</strong><small>${r.room_type === 'direct' ? 'Trò chuyện riêng 1–1' : `Nhóm · ${Number(r.member_count || 1)} thành viên`} · ${Number(r.message_count || 0)} tin nhắn${Number(r.unread_count||0)>0?` · ${Number(r.unread_count)} chưa đọc`:''}</small></span>
                     <span class="chat-room-arrow" aria-hidden="true">›</span>
                   </button>
                 `).join('')}
@@ -3444,25 +3591,31 @@ ${isVi?'Hãy bàn giao qua kênh đã xác minh. Không gửi mật khẩu qua n
           </header>
           ${room?.room_type === 'group' ? `<div class="chat-members-panel"><div class="chat-panel-heading"><strong>Thành viên nhóm</strong><span>${members.length}</span></div><div class="chat-member-chips">${members.map(m => `<span class="chat-member-chip">${esc(m.full_name)} <small>${esc(m.role)}</small>${m.role !== 'owner' && AppState.currentUser?.id === room.created_by ? `<button type="button" aria-label="Xóa ${esc(m.full_name)} khỏi nhóm" data-remove-chat-member="${esc(m.user_id)}">×</button>` : ''}</span>`).join('')}</div><p class="chat-helper">Để thêm thành viên, tìm tài khoản ở phía trên, đánh dấu “Chọn nhóm”, rồi bấm “Thêm người đã chọn vào nhóm” bên dưới.</p><button type="button" class="btn btn-sm btn-secondary" id="btnAddMembersToRoom">Thêm người đã chọn vào nhóm</button></div>` : ''}
           <div class="chat-message-list" id="chatMessageList">
-            ${AppState.activeChatMessages.length ? AppState.activeChatMessages.map(m => `<article class="chat-message"><div class="chat-message-meta"><strong>${esc(m.sender_name)}</strong><time>${esc(m.created_at || '')}</time></div><p>${esc(m.message_text)}</p></article>`).join('') : '<div class="chat-empty"><strong>Chưa có tin nhắn</strong><p>Gửi tin nhắn đầu tiên trong cuộc trò chuyện này.</p></div>'}
+            ${AppState.activeChatMessages.length ? AppState.activeChatMessages.map(m => `<article class="chat-message"><div class="chat-message-meta"><strong>${esc(m.sender_name)}</strong><time>${esc(m.created_at || '')}</time></div>${m.message_text?`<p>${esc(m.message_text)}</p>`:''}${m.attachment?`<div class="chat-attachment"><span aria-hidden="true">📎</span><span><strong>${esc(m.attachment.filename)}</strong><small>${esc(m.attachment.mime_type)} · ${chatFileSize(Number(m.attachment.size_bytes||0))}</small></span><button type="button" class="btn btn-sm btn-secondary" data-download-chat-file="${esc(m.attachment.id)}" data-chat-filename="${esc(m.attachment.filename)}">Tải tệp</button></div>`:''}</article>`).join('') : '<div class="chat-empty"><strong>Chưa có tin nhắn</strong><p>Gửi tin nhắn đầu tiên trong cuộc trò chuyện này.</p></div>'}
           </div>
           <form id="sendChatMsgForm" class="chat-compose-form">
             <label class="sr-only" for="inpChatMsg">Nội dung tin nhắn</label>
-            <textarea id="inpChatMsg" class="form-control" rows="2" maxlength="5000" placeholder="Nhập tin nhắn…" required></textarea>
-            <button type="submit" class="btn btn-primary">Gửi tin nhắn</button>
+            <textarea id="inpChatMsg" class="form-control" rows="2" maxlength="5000" placeholder="Nhập tin nhắn…"></textarea>
+            <div class="chat-compose-actions"><label class="chat-file-picker" for="inpChatAttachment">📎 Đính kèm tệp</label><input id="inpChatAttachment" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,text/plain" class="sr-only"><small id="chatAttachmentName" class="chat-helper">Ảnh, PDF hoặc TXT · tối đa 10 MB</small><button type="submit" class="btn btn-primary">Gửi tin nhắn</button></div>
           </form>
           <p class="chat-helper">Không gửi mật khẩu, token xác thực hoặc tài liệu nhạy cảm vào hội thoại không phù hợp.</p>
         `;
         document.getElementById('btnRefreshChat')?.addEventListener('click', () => openRoom(roomId));
+        document.getElementById('inpChatAttachment')?.addEventListener('change', ev => { const file=ev.currentTarget.files?.[0]; const label=document.getElementById('chatAttachmentName'); if(label)label.textContent=file?`${file.name} · ${chatFileSize(file.size)}`:'Ảnh, PDF hoặc TXT · tối đa 10 MB'; });
+        panel.querySelectorAll('[data-download-chat-file]').forEach(btn=>btn.addEventListener('click',()=>downloadChatFile(btn.dataset.downloadChatFile,btn.dataset.chatFilename,btn)));
         document.getElementById('sendChatMsgForm')?.addEventListener('submit', async ev => {
           ev.preventDefault();
           const input = document.getElementById('inpChatMsg');
           const submit = ev.currentTarget.querySelector('button[type="submit"]');
-          const message_text = input?.value?.trim();
-          if (!message_text) return;
+          const message_text = input?.value?.trim() || '';
+          const fileInput=document.getElementById('inpChatAttachment');
+          const selectedFile=fileInput?.files?.[0]||null;
+          if (!message_text && !selectedFile) return;
+          if (selectedFile && selectedFile.size>10*1024*1024) return showToast('Tệp đính kèm không được vượt quá 10 MB.',true);
           submit.disabled = true;
           try {
-            await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`, { method: 'POST', body: JSON.stringify({ message_text }) });
+            if(selectedFile){const form=new FormData();form.set('message_text',message_text);form.set('file',selectedFile);await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`,{method:'POST',body:form});}
+            else await apiFetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/messages`, { method: 'POST', body: JSON.stringify({ message_text }) });
             await openRoom(roomId);
           } catch (err) {
             showToast(err.message, true);

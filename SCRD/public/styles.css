@@ -1283,3 +1283,91 @@ body.admin-route #appViewport { min-height: calc(100vh - 76px); }
 .admin-user-actions { display:flex; flex-direction:column; gap:6px; min-width:145px; }
 .admin-user-actions .btn { white-space:nowrap; }
 @media(max-width:760px) { .admin-user-actions { flex-direction:row; flex-wrap:wrap; } }
+
+
+/* Mandatory password-change screen for administrator-issued temporary credentials. */
+.password-change-route .main-nav-wrap { display:none; }
+.password-change-card { max-width:620px; margin:0 auto; }
+.password-change-form { display:grid; gap:14px; text-align:left; }
+.password-change-form .form-group { margin:0; }
+.password-change-form .btn { justify-self:start; }
+@media (max-width:560px) {
+  .password-change-form .btn { width:100%; margin-left:0 !important; }
+}
+
+
+/* Secure chat file sharing: metadata only in markup, authenticated download via API. */
+.chat-attachment { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; padding:10px 12px; border:1px solid var(--line-200); border-radius:10px; background:var(--bg-100); }
+.chat-attachment > span:nth-child(2) { min-width:0; flex:1; display:flex; flex-direction:column; overflow-wrap:anywhere; }
+.chat-attachment small { color:var(--text-muted); font-size:12px; }
+.chat-compose-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.chat-file-picker { border:1px solid var(--line-300); border-radius:8px; padding:9px 12px; cursor:pointer; font-weight:600; }
+.chat-file-picker:hover { background:var(--bg-100); }
+@media (max-width:560px) { .chat-compose-actions > .btn { width:100%; } .chat-attachment > .btn { width:100%; } }
+
+/* Separate supporting description keeps the approved homepage headline and subtitle readable. */
+.hero-description{max-width:760px;margin:10px 0 0;color:rgba(239,246,255,.88);font-size:clamp(14px,1.1vw,17px);line-height:1.75}
+
+
+/* Registration identity portrait previews and complete Step 5 review. */
+.personal-photo-preview-wrap,
+.registration-review-photo {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-300, #dbe4ef);
+  border-radius: 12px;
+  background: var(--bg-50, #f8fafc);
+}
+.personal-photo-preview-wrap[hidden] { display: none !important; }
+.personal-photo-preview-wrap img,
+.registration-review-photo img {
+  display: block;
+  width: auto;
+  max-width: min(100%, 260px);
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid var(--line-300, #dbe4ef);
+  background: #fff;
+}
+.registration-review-extras {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 18px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line-300, #dbe4ef);
+  border-radius: 12px;
+  background: var(--bg-50, #f8fafc);
+  overflow-wrap: anywhere;
+}
+.registration-review-photo { grid-column: 1 / -1; }
+@media (max-width: 600px) {
+  .registration-review-extras { grid-template-columns: minmax(0, 1fr); }
+  .registration-review-photo { grid-column: auto; }
+}
+
+/* Homepage layout manager — CMS editor */
+.home-layout-editor { display: grid; gap: 18px; }
+.home-layout-list { display: grid; gap: 10px; }
+.home-layout-row { display: grid; grid-template-columns: 42px minmax(0,1fr) auto auto; align-items: center; gap: 12px; padding: 13px 14px; border: 1px solid var(--line-200); border-radius: 12px; background: #fff; box-shadow: var(--shadow-sm); }
+.home-layout-rank { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--navy-900); background: #eaf2fc; font-weight: 800; }
+.home-layout-name { display: grid; gap: 2px; min-width: 0; color: var(--ink-900); }
+.home-layout-name small { color: var(--ink-500); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.home-layout-toggle { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-700); white-space: nowrap; font-size: 13px; }
+.home-layout-toggle input { width: 17px; height: 17px; accent-color: var(--blue-600); }
+.home-layout-controls { display: flex; gap: 6px; }
+.home-layout-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+.home-layout-status { color: var(--emerald-600); font-size: 13px; font-weight: 650; }
+[data-home-block][hidden] { display: none !important; }
+@media (max-width: 760px) {
+  .home-layout-row { grid-template-columns: 34px minmax(0,1fr) auto; gap: 8px; padding: 10px; }
+  .home-layout-toggle { grid-column: 2; grid-row: 2; }
+  .home-layout-controls { grid-column: 3; grid-row: 1 / span 2; flex-direction: column; }
+  .home-layout-actions > .btn { width: 100%; }
+}
+.checkbox-line { display: flex; align-items: center; gap: 9px; margin: 8px 0 14px; color: var(--ink-700); font-size: 13px; }
+.checkbox-line input { width: 17px; height: 17px; accent-color: var(--blue-600); }

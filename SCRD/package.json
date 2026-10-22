@@ -5,16 +5,18 @@
   "type": "module",
   "description": "Sky First Center for Research and Development web platform and Exam portal",
   "scripts": {
-    "check": "node --check backend_worker.js && node --check public/app.js && node --check EXAM/src/index.js && node --check EXAM/public/api.js && node --check EXAM/public/core.js && node --check EXAM/public/storage.js && node --check EXAM/public/exam.js && node --check EXAM/functions/health.js",
+    "check": "node --check backend_worker.js && node --check public/app.js && node --check EXAM/src/index.js && node --check EXAM/public/api.js && node --check EXAM/public/core.js && node --check EXAM/public/storage.js && node --check EXAM/public/exam.js && node --check EXAM/functions/health.js && node --check tests/release-audit.mjs",
     "test:scrd": "node tests/smoke.mjs",
     "test:integration": "node tests/integration.mjs",
     "test:exam": "cd EXAM && node scripts/validate.mjs",
-    "test": "npm run check && npm run test:content && npm run test:ui && npm run test:scrd && npm run test:integration && npm run test:exam",
+    "test": "npm run check && npm run test:migrations && npm run test:content && npm run test:ui && npm run test:scrd && npm run test:integration && npm run test:exam && npm run test:release",
     "dev:scrd": "npx wrangler@4.34.0 dev --config wrangler.toml",
     "dev:exam": "npx wrangler@4.34.0 dev --config EXAM/wrangler.json",
     "deploy:scrd": "npm run check && npx wrangler@4.34.0 deploy --config wrangler.toml",
     "deploy:exam": "npm run test:exam && npx wrangler@4.34.0 deploy --config EXAM/wrangler.json",
     "test:content": "node tests/content-validation.mjs",
-    "test:ui": "node tests/ui-regression.mjs"
+    "test:ui": "node tests/ui-regression.mjs",
+    "test:migrations": "node tests/migration-chain.mjs",
+    "test:release": "node tests/release-audit.mjs"
   }
 }

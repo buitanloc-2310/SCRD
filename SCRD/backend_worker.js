@@ -31,10 +31,17 @@ const DEFAULT_SETTINGS = {
   hero_eyebrow_en: 'SKY FIRST CENTER FOR RESEARCH AND DEVELOPMENT',
   hero_title_vi: 'NGHIÊN CỨU KHOA HỌC & PHÁT TRIỂN CỘNG ĐỒNG',
   hero_title_en: 'SCIENTIFIC RESEARCH & COMMUNITY DEVELOPMENT',
-  hero_subtitle_vi: 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững. Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
-  hero_subtitle_en: 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives. The official platform of Sky First Center for Research and Development.',
+  hero_subtitle_vi: 'Kết nối tri thức học thuật, khảo thí chuẩn hóa và sáng kiến cộng đồng bền vững.',
+  hero_subtitle_en: 'Connecting academic knowledge, standardized assessment, and sustainable community initiatives.',
+  hero_description_vi: 'Nền tảng chính thức của Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
+  hero_description_en: 'The official platform of Sky First Center for Research and Development.',
   copyright_vi: '© Trung tâm Nghiên cứu và Phát triển Cộng đồng Sky First.',
-  copyright_en: '© Sky First Center for Research and Development.'
+  copyright_en: '© Sky First Center for Research and Development.',
+  homepage_layout: [
+    {id:'hero',enabled:true,order:1},{id:'pillars',enabled:true,order:2},{id:'programs',enabled:true,order:3},
+    {id:'assessments',enabled:true,order:4},{id:'publications',enabled:true,order:5},{id:'news',enabled:true,order:6},
+    {id:'partners',enabled:true,order:7},{id:'cooperation',enabled:true,order:8},{id:'longform',enabled:true,order:9}
+  ]
 };
 const DEFAULT_MENUS = [
   ['menu_main_1','main_header','Trang chủ','Home','/','1'],
@@ -148,18 +155,20 @@ async function writeAudit(db,request,actor,action,type,id,details={}) {
 async function currentSession(request,env) {
   const m=str(request.headers.get('Authorization')).match(/^Bearer\s+([A-Za-z0-9._~-]{32,256})$/i); if(!m)return null;
   const tokenHash=await hashText(m[1]);
-  const s=await env.DB.prepare(`SELECT s.session_id,s.csrf_token,s.expires_at,u.id AS user_id,u.sfn_id,u.email,u.full_name,u.role,u.status,u.avatar_r2_key,u.avatar_url,u.phone,u.organization,u.department,u.academic_title,u.bio_vi,u.bio_en
+  const s=await env.DB.prepare(`SELECT s.session_id,s.csrf_token,s.expires_at,u.id AS user_id,u.sfn_id,u.email,u.full_name,u.role,u.status,u.avatar_r2_key,u.avatar_url,u.phone,u.organization,u.department,u.academic_title,u.bio_vi,u.bio_en,u.must_change_password
     FROM user_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked=0 AND s.expires_at>CURRENT_TIMESTAMP LIMIT 1`).bind(tokenHash).first();
   return s && s.status==='active' ? s : null;
 }
 function needsCsrf(request,session) {
-  // Authorization is a bearer header, not ambient cookie auth. When a CSRF token is supplied it must match.
+  // Mutating authenticated requests must explicitly carry the session-bound CSRF token.
+  // The bearer token is not cookie-ambient; requiring both headers adds defense in depth against confused clients.
   const token=request.headers.get('X-CSRF-Token');
-  return !token || constantEqual(token,session.csrf_token||'');
+  return Boolean(token) && constantEqual(token,session.csrf_token||'');
 }
 async function requireSession(request,env,roles=null) {
   const session=await currentSession(request,env);
   if(!session)throw Object.assign(new Error('UNAUTHORIZED'),{httpStatus:401});
+  if(Number(session.must_change_password||0)===1)throw Object.assign(new Error('MUST_CHANGE_PASSWORD'),{httpStatus:428});
   if(!needsCsrf(request,session) && !['GET','HEAD','OPTIONS'].includes(request.method)) throw Object.assign(new Error('CSRF_INVALID'),{httpStatus:403});
   if(roles && !roles.has(session.role))throw Object.assign(new Error('FORBIDDEN'),{httpStatus:403});
   return session;
@@ -229,20 +238,59 @@ async function loadPublicData(env) {
   const settings={...DEFAULT_SETTINGS}; for(const row of settingRows.results||[]){settings[row.config_key]=parseJson(row.config_value,row.config_value);}
   return {settings,menus:menus.results||[],redirects:redirects.results||[],pages:pages.results||[],posts:posts.results||[],research_studies:research.results||[],community_projects:projects.results||[],publications:pubs.results||[],exams:exams.results||[],partners:partners.results||[]};
 }
-function calcAge(dob) { if(!/^\d{4}-\d{2}-\d{2}$/.test(str(dob)))return null;const [y,m,d]=dob.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1,d));if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==d||y<1900)return null;const nowDate=new Date();let age=nowDate.getUTCFullYear()-y;if(nowDate.getUTCMonth()<m-1||(nowDate.getUTCMonth()===m-1&&nowDate.getUTCDate()<d))age--;return age; }
+function validDateOnly(value) { const v=str(value);if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return false;const [y,m,d]=v.split('-').map(Number);const date=new Date(Date.UTC(y,m-1,d));return y>=1900&&date.getUTCFullYear()===y&&date.getUTCMonth()===m-1&&date.getUTCDate()===d; }
+function calcAge(dob) { if(!validDateOnly(dob))return null;const [y,m,d]=dob.split('-').map(Number);const nowDate=new Date();let age=nowDate.getUTCFullYear()-y;if(nowDate.getUTCMonth()<m-1||(nowDate.getUTCMonth()===m-1&&nowDate.getUTCDate()<d))age--;return age; }
 function validEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(str(v)) && str(v).length<=220;}
 function maskedId(v,type){const s=str(v).replace(/\s/g,'');return s.length<=4?'•'.repeat(s.length):`${'•'.repeat(Math.max(4,s.length-4))}${s.slice(-4)}`;}
 async function validateUploadFile(file) {
   if(!file||typeof file.arrayBuffer!=='function'||!file.size)throw Object.assign(new Error('Vui lòng chọn tệp tải lên.'),{httpStatus:400});
   if(file.size>MAX_UPLOAD)throw Object.assign(new Error('Tệp vượt quá 25 MB.'),{httpStatus:413});
   const mime=str(file.type).toLowerCase(); if(!MIME_EXT.has(mime))throw Object.assign(new Error('Định dạng tệp chưa được hỗ trợ.'),{httpStatus:415});
-  const bytes=new Uint8Array(await file.slice(0,16).arrayBuffer());
-  if(mime==='image/jpeg' && !(bytes[0]===255&&bytes[1]===216&&bytes[2]===255))throw Object.assign(new Error('Chữ ký JPEG không hợp lệ.'),{httpStatus:415});
-  if(mime==='image/png' && bytes.slice(0,8).join(',')!=='137,80,78,71,13,10,26,10')throw Object.assign(new Error('Chữ ký PNG không hợp lệ.'),{httpStatus:415});
-  if(mime==='image/webp' && (String.fromCharCode(...bytes.slice(0,4))!=='RIFF'||String.fromCharCode(...bytes.slice(8,12))!=='WEBP'))throw Object.assign(new Error('Chữ ký WebP không hợp lệ.'),{httpStatus:415});
-  if(mime==='application/pdf' && String.fromCharCode(...bytes.slice(0,4))!=='%PDF')throw Object.assign(new Error('Chữ ký PDF không hợp lệ.'),{httpStatus:415});
-  if(mime.includes('openxmlformats') && !(bytes[0]===0x50&&bytes[1]===0x4b))throw Object.assign(new Error('Chữ ký Office không hợp lệ.'),{httpStatus:415});
-  return {file,mime,bytes};
+  const prefix=new Uint8Array(await file.slice(0,Math.min(file.size,1024*1024)).arrayBuffer());
+  const tail=new Uint8Array(await file.slice(Math.max(0,file.size-12)).arrayBuffer());
+  const u32be=(b,o)=>((b[o]*0x1000000)+(b[o+1]<<16)+(b[o+2]<<8)+b[o+3])>>>0;
+  const u24le=(b,o)=>(b[o]|(b[o+1]<<8)|(b[o+2]<<16))>>>0;
+  const checkDimensions=(w,h,format)=>{if(!w||!h||w>12000||h>12000||w*h>40000000)throw Object.assign(new Error(`${format}: kích thước ảnh không hợp lệ hoặc vượt quá giới hạn 40 megapixel.`),{httpStatus:413});};
+  if(mime==='image/png'){
+    const validSignature=prefix.length>=24&&prefix.slice(0,8).join(',')==='137,80,78,71,13,10,26,10';
+    const validHeader=validSignature&&u32be(prefix,8)===13&&String.fromCharCode(...prefix.slice(12,16))==='IHDR';
+    const hasImageData=new TextDecoder('ascii').decode(prefix).includes('IDAT');
+    const hasEnd=tail.length===12&&tail.join(',')==='0,0,0,0,73,69,78,68,174,66,96,130';
+    if(file.size<45||!validHeader||!hasImageData||!hasEnd)throw Object.assign(new Error('Cấu trúc PNG không hợp lệ hoặc tệp ảnh bị cắt cụt.'),{httpStatus:415});
+    checkDimensions(u32be(prefix,16),u32be(prefix,20),'PNG');
+  }
+  if(mime==='image/jpeg'){
+    if(file.size<20||prefix[0]!==0xff||prefix[1]!==0xd8||tail[tail.length-2]!==0xff||tail[tail.length-1]!==0xd9)throw Object.assign(new Error('Cấu trúc JPEG không hợp lệ hoặc tệp ảnh bị cắt cụt.'),{httpStatus:415});
+    let pos=2,dimensions=null;
+    const sof=new Set([0xc0,0xc1,0xc2,0xc3,0xc5,0xc6,0xc7,0xc9,0xca,0xcb,0xcd,0xce,0xcf]);
+    while(pos+3<prefix.length){
+      while(pos<prefix.length&&prefix[pos]!==0xff)pos++;
+      while(pos<prefix.length&&prefix[pos]===0xff)pos++;
+      if(pos>=prefix.length)break;
+      const marker=prefix[pos++];
+      if(marker===0xd9||marker===0xda)break;
+      if(marker===0x01||(marker>=0xd0&&marker<=0xd7))continue;
+      if(pos+1>=prefix.length)break;
+      const length=(prefix[pos]<<8)|prefix[pos+1];
+      if(length<2||pos+length>prefix.length)break;
+      if(sof.has(marker)&&length>=7){dimensions={h:(prefix[pos+3]<<8)|prefix[pos+4],w:(prefix[pos+5]<<8)|prefix[pos+6]};break;}
+      pos+=length;
+    }
+    if(!dimensions)throw Object.assign(new Error('Không xác định được kích thước ảnh JPEG; tệp có thể hỏng hoặc không được hỗ trợ.'),{httpStatus:415});
+    checkDimensions(dimensions.w,dimensions.h,'JPEG');
+  }
+  if(mime==='image/webp'){
+    if(file.size<30||String.fromCharCode(...prefix.slice(0,4))!=='RIFF'||String.fromCharCode(...prefix.slice(8,12))!=='WEBP'||(prefix[4]+(prefix[5]<<8)+(prefix[6]<<16)+(prefix[7]*0x1000000))!==file.size-8)throw Object.assign(new Error('Cấu trúc WebP không hợp lệ hoặc tệp ảnh bị cắt cụt.'),{httpStatus:415});
+    const chunk=String.fromCharCode(...prefix.slice(12,16));let w=0,h=0;
+    if(chunk==='VP8X'&&prefix.length>=30){w=u24le(prefix,24)+1;h=u24le(prefix,27)+1;}
+    else if(chunk==='VP8L'&&prefix.length>=25&&prefix[20]===0x2f){w=1+prefix[21]+((prefix[22]&0x3f)<<8);h=1+(prefix[22]>>6)+(prefix[23]<<2)+((prefix[24]&0x0f)<<10);}
+    else if(chunk==='VP8 '&&prefix.length>=30&&prefix[23]===0x9d&&prefix[24]===0x01&&prefix[25]===0x2a){w=((prefix[26]|(prefix[27]<<8))&0x3fff);h=((prefix[28]|(prefix[29]<<8))&0x3fff);}
+    if(!w||!h)throw Object.assign(new Error('Không xác định được kích thước ảnh WebP; tệp có thể hỏng hoặc không được hỗ trợ.'),{httpStatus:415});
+    checkDimensions(w,h,'WebP');
+  }
+  if(mime==='application/pdf' && (prefix.length<8||String.fromCharCode(...prefix.slice(0,4))!=='%PDF'))throw Object.assign(new Error('Chữ ký PDF không hợp lệ.'),{httpStatus:415});
+  if(mime.includes('openxmlformats') && !(prefix[0]===0x50&&prefix[1]===0x4b))throw Object.assign(new Error('Chữ ký Office không hợp lệ.'),{httpStatus:415});
+  return {file,mime,bytes:prefix};
 }
 async function getUploadFile(request) { const fd=await request.formData(); return validateUploadFile(fd.get('file')); }
 function safeFilename(name,mime){const base=String(name||'file').normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g,'_').replace(/^\.+/,'').slice(-120)||'file';return /\.[a-zA-Z0-9]{2,5}$/.test(base)?base:`${base}.${MIME_EXT.get(mime)||'bin'}`;}
@@ -263,17 +311,27 @@ async function uploadToR2(env, request, {purpose='general',scope='private',owner
 async function fileResponse(request,env,row) {
   const session=await currentSession(request,env).catch(()=>null);
   const scope=row.access_scope;
+  // Enforce staging isolation before evaluating access_scope, so an accidental/unsafe public
+  // metadata change cannot publish a file that has not been attached to a submitted request.
+  if(row.related_entity_type==='account_request_staging') {
+    // Use a not-found response for all callers to avoid confirming existence of a staged upload.
+    return fail('Không tìm thấy tệp được yêu cầu.',404,request);
+  }
   if(scope!=='public') {
     if(!session)return fail('Bạn cần đăng nhập để xem tệp này.',401,request);
+    if(Number(session.must_change_password||0)===1)return fail('Tài khoản đang dùng mật khẩu tạm thời. Vui lòng đổi mật khẩu trước khi tiếp tục.',428,request);
     let allowed=scope==='authenticated' && row.owner_user_id===session.user_id;
     allowed ||= scope==='research_team' && (RESEARCH_ROLES.has(session.role)||ADMIN_ROLES.has(session.role));
     allowed ||= scope==='project_team' && (RESEARCH_ROLES.has(session.role)||ADMIN_ROLES.has(session.role));
     allowed ||= scope==='admin_only' && ADMIN_ROLES.has(session.role);
     allowed ||= scope==='identity_private' && REVIEW_ROLES.has(session.role);
     allowed ||= scope==='exam_protected' && (session.role==='examiner'||ADMIN_ROLES.has(session.role));
-    allowed ||= scope==='chat_attachment' && Boolean(session);
+    if(scope==='chat_attachment'&&session){
+      const attachmentMembership=await env.DB.prepare(`SELECT 1 AS allowed FROM chat_messages cm JOIN chat_room_members rm ON rm.room_id=cm.room_id AND rm.user_id=? WHERE cm.attachment_r2_file_id=? AND cm.is_deleted=0 LIMIT 1`).bind(session.user_id,row.id).first().catch(()=>null);
+      allowed ||= Boolean(attachmentMembership);
+    }
     // Private account files remain accessible only to reviewers/admins, not just any logged-in user.
-    allowed ||= ['account_request_staging','account_request'].includes(row.related_entity_type) && REVIEW_ROLES.has(session.role);
+    allowed ||= row.related_entity_type==='account_request' && REVIEW_ROLES.has(session.role);
     if(!allowed)return fail('Bạn không có quyền xem tệp này.',403,request);
   }
   const object=await env.FILES.get(row.r2_key); if(!object)return fail('Không tìm thấy tệp trong kho lưu trữ.',404,request);
@@ -286,7 +344,7 @@ async function createSession(env,request,user) {
     .bind(sessionId,user.id,tokenHash,csrf,requestIp(request),cleanText(request?.headers?.get('User-Agent'),300)).run();
   return {token:raw,csrf_token:csrf,session_id:sessionId};
 }
-function publicUser(user) { return {id:user.id||user.user_id,sfn_id:user.sfn_id||null,email:user.email,full_name:user.full_name,role:user.role,status:user.status,avatar_r2_key:user.avatar_r2_key||null,avatar_url:user.avatar_url||null,phone:user.phone||'',organization:user.organization||'',department:user.department||'',academic_title:user.academic_title||'',bio_vi:user.bio_vi||'',bio_en:user.bio_en||''}; }
+function publicUser(user) { return {id:user.id||user.user_id,sfn_id:user.sfn_id||null,email:user.email,full_name:user.full_name,role:user.role,status:user.status,must_change_password:Boolean(Number(user.must_change_password||0)),avatar_r2_key:user.avatar_r2_key||null,avatar_url:user.avatar_url||null,phone:user.phone||'',organization:user.organization||'',department:user.department||'',academic_title:user.academic_title||'',bio_vi:user.bio_vi||'',bio_en:user.bio_en||''}; }
 function validatePostStatus(status,existing) { const s=str(status||existing||'draft'); if(!['draft','pending_review','published','unpublished'].includes(s))throw Object.assign(new Error('Trạng thái bài viết không hợp lệ.'),{httpStatus:400}); return s; }
 async function reviewRequest(env,request,session,body) {
   const requestId=str(body.request_id); const newStatus=str(body.new_status);
@@ -295,6 +353,12 @@ async function reviewRequest(env,request,session,body) {
   const row=await env.DB.prepare('SELECT * FROM account_requests WHERE id=?').bind(requestId).first(); if(!row)throw Object.assign(new Error('Không tìm thấy hồ sơ.'),{httpStatus:404});
   const pub=cleanText(body.public_review_message ?? body.review_notes_public,3000),internal=cleanText(body.internal_reviewer_notes,5000);
   let approvedUserId=row.approved_user_id||null;
+  if(newStatus==='Đã kích hoạt tài khoản') {
+    if(!approvedUserId)throw Object.assign(new Error('Cần duyệt hồ sơ trước khi đánh dấu tài khoản đã kích hoạt.'),{httpStatus:409});
+    const activationTarget=await env.DB.prepare('SELECT id,status FROM users WHERE id=? LIMIT 1').bind(approvedUserId).first();
+    if(!activationTarget)throw Object.assign(new Error('Không tìm thấy tài khoản được liên kết với hồ sơ.'),{httpStatus:409});
+    if(!['pending','active'].includes(activationTarget.status))throw Object.assign(new Error('Tài khoản đang bị tạm khóa hoặc khóa. Hãy xử lý trạng thái tài khoản riêng trước khi kích hoạt.'),{httpStatus:409});
+  }
   if(newStatus==='Đã duyệt' && !approvedUserId) {
     const role=ROLES.has(row.requested_role)&&!['super_admin','cms_editor','reviewer'].includes(row.requested_role)?row.requested_role:'member';
     const uid=uuid(),sfnId=`SFN-${randomToken(6).toUpperCase()}`;
@@ -307,10 +371,18 @@ async function reviewRequest(env,request,session,body) {
   }
   if(newStatus==='Từ chối') await dispatchEmail(env,'account_request_rejected',row.email,`Cập nhật hồ sơ ${row.request_code}`,{full_name:row.full_name,request_code:row.request_code,review_message:pub},row.request_code);
   else if(!['Đã duyệt'].includes(newStatus)) await dispatchEmail(env,'account_request_status_update',row.email,`Cập nhật hồ sơ ${row.request_code}`,{full_name:row.full_name,request_code:row.request_code,request_status:newStatus,review_message:pub},row.request_code);
-  await env.DB.batch([
-    env.DB.prepare(`UPDATE account_requests SET status=?,assigned_role=COALESCE(?,assigned_role),reviewer_id=?,review_notes_public=?,review_notes_internal=?,approved_user_id=?,reviewed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(newStatus,newStatus==='Đã duyệt'?(ROLES.has(row.requested_role)&&!['super_admin','cms_editor','reviewer'].includes(row.requested_role)?row.requested_role:'member'):null,session.user_id,pub,internal,approvedUserId,requestId),
-    env.DB.prepare(`INSERT INTO account_request_history(id,request_id,actor_user_id,old_status,new_status,note_public,note_internal,created_at) VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`).bind(uuid(),requestId,session.user_id,row.status,newStatus,pub,internal)
-  ]);
+  const reviewStatements=[];
+  if(newStatus==='Đã kích hoạt tài khoản') {
+    // Keep user and request statuses in the same D1 batch; locked/suspended accounts are not silently re-enabled.
+    reviewStatements.push(env.DB.prepare(`UPDATE users SET status='active',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('pending','active')`).bind(approvedUserId));
+  }
+  reviewStatements.push(
+    env.DB.prepare(`UPDATE account_requests SET status=?,assigned_role=COALESCE(?,assigned_role),reviewer_id=?,review_notes_public=?,review_notes_internal=?,approved_user_id=?,reviewed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND (?<>'Đã kích hoạt tài khoản' OR EXISTS(SELECT 1 FROM users WHERE id=? AND status='active'))`).bind(newStatus,newStatus==='Đã duyệt'?(ROLES.has(row.requested_role)&&!['super_admin','cms_editor','reviewer'].includes(row.requested_role)?row.requested_role:'member'):null,session.user_id,pub,internal,approvedUserId,requestId,newStatus,approvedUserId),
+    env.DB.prepare(`INSERT INTO account_request_history(id,request_id,actor_user_id,old_status,new_status,note_public,note_internal,created_at) SELECT ?,?,?,?,?,?,?,CURRENT_TIMESTAMP WHERE ?<>'Đã kích hoạt tài khoản' OR EXISTS(SELECT 1 FROM users WHERE id=? AND status='active')`).bind(uuid(),requestId,session.user_id,row.status,newStatus,pub,internal,newStatus,approvedUserId)
+  );
+  const reviewResults=await env.DB.batch(reviewStatements);
+  const requestUpdateResult=reviewResults[reviewStatements.length-(newStatus==='Đã kích hoạt tài khoản'?2:1)];
+  if(newStatus==='Đã kích hoạt tài khoản'&&Number(requestUpdateResult?.meta?.changes||0)!==1)throw Object.assign(new Error('Không thể đồng bộ trạng thái kích hoạt. Tải lại hồ sơ và kiểm tra trạng thái tài khoản.'),{httpStatus:409});
   await writeAudit(env.DB,request,session.user_id,'ACCOUNT_REQUEST_REVIEWED','account_requests',requestId,{new_status:newStatus,request_code:row.request_code});
   return {ok:true,status:newStatus,email_dispatch_configured:Boolean(env.EMAIL_WEBHOOK_URL&&env.EMAIL_API_KEY),approved_user_id:approvedUserId};
 }
@@ -368,6 +440,20 @@ async function scoreAndSubmit(env,session,id,answers) {
   await writeAudit(env.DB,null,session.user_id,'EXAM_ATTEMPT_SUBMITTED','exam_attempts',id,{manual_grading:manual>0});
   return await getAttemptForUser(env,session,id);
 }
+const HOME_LAYOUT_IDS = ['hero','pillars','programs','assessments','publications','news','partners','cooperation','longform'];
+function normalizeHomeLayout(input) {
+  if (!Array.isArray(input) || input.length !== HOME_LAYOUT_IDS.length) throw Object.assign(new Error('Bố cục trang chủ phải chứa đầy đủ các khối được hỗ trợ.'), { httpStatus: 400 });
+  if (str(input[0]?.id) !== 'hero') throw Object.assign(new Error('Khối Hero phải đứng đầu trang chủ.'), { httpStatus: 400 });
+  const seen = new Set();
+  const normalized = input.map((item, index) => {
+    if (!item || typeof item !== 'object' || !HOME_LAYOUT_IDS.includes(str(item.id)) || seen.has(str(item.id))) throw Object.assign(new Error('Bố cục trang chủ có khối không hợp lệ hoặc bị lặp.'), { httpStatus: 400 });
+    const id = str(item.id); seen.add(id);
+    return { id, enabled: id === 'hero' ? true : boolInt(item.enabled) === 1, order: index + 1 };
+  });
+  if (seen.size !== HOME_LAYOUT_IDS.length) throw Object.assign(new Error('Bố cục trang chủ còn thiếu khối bắt buộc.'), { httpStatus: 400 });
+  return normalized;
+}
+
 async function routeApi(request,env) {
   const url=new URL(request.url),path=url.pathname,method=request.method.toUpperCase();
   if(method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Methods':'GET, POST, PUT, PATCH, DELETE, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization, X-Bootstrap-Token, X-CSRF-Token, X-Exam-Session','Access-Control-Max-Age':'86400'}});
@@ -412,6 +498,8 @@ async function routeApi(request,env) {
     if(!['personal_photo','supporting_doc'].includes(purpose))return fail('Bước đăng ký chỉ nhận ảnh chân dung cá nhân và tài liệu minh chứng bổ sung; không tải ảnh giấy tờ định danh vào trường ảnh chân dung.',400,request);
     const uploaded=fd.get('file');
     if(!uploaded||typeof uploaded.arrayBuffer!=='function'||!uploaded.size)return fail('Vui lòng chọn tệp tải lên.',400,request);
+    const purposeMaxBytes=purpose==='personal_photo'?8*1024*1024:15*1024*1024;
+    if(uploaded.size>purposeMaxBytes)return fail(purpose==='personal_photo'?'Ảnh chân dung không được vượt quá 8 MB.':'Tài liệu minh chứng không được vượt quá 15 MB.',413,request);
     const uploadMime=str(uploaded.type).toLowerCase();
     if(purpose==='personal_photo'&&!['image/jpeg','image/png','image/webp'].includes(uploadMime))return fail('Ảnh chân dung cá nhân chỉ chấp nhận JPEG, PNG hoặc WebP.',415,request);
     // File is kept private and tied to a random staging key until a submitted request claims it.
@@ -431,12 +519,17 @@ async function routeApi(request,env) {
     if(['student_uni','researcher_lecturer'].includes(group)&&!str(b.faculty_department))return fail('Nhóm đăng ký này cần cung cấp khoa/bộ môn.',400,request);
     if(group==='specialist_staff'&&!str(b.position_title))return fail('Nhân sự/chuyên viên cần cung cấp chức vụ.',400,request);
     const idType=str(b.id_document_type||'CCCD'),idNumber=str(b.id_number).replace(/\s/g,'');
-    if(!['CCCD','Passport','StudentCard','BirthCertificate'].includes(idType)||!idNumber||idNumber.length<(idType==='CCCD'?12:6)||(idType==='CCCD'&&!/^\d{12}$/.test(idNumber))||!str(b.id_issued_date)||!str(b.id_issued_place))return fail('Bước 3: Thông tin giấy tờ định danh không hợp lệ.',400,request);
+    const issuedDate=str(b.id_issued_date),expiryDate=str(b.id_expiry_date||'');
+    const todayIso=new Date().toISOString().slice(0,10);
+    const validIdNumber=idType==='CCCD'?/^\d{12}$/.test(idNumber):/^[\p{L}\p{N}./-]{6,64}$/u.test(idNumber);
+    if(!['CCCD','Passport','StudentCard','BirthCertificate'].includes(idType)||!validIdNumber||idNumber.length>64||!validDateOnly(issuedDate)||issuedDate>todayIso||!cleanText(b.id_issued_place,200)||(expiryDate&&(!validDateOnly(expiryDate)||expiryDate<issuedDate)))return fail('Bước 3: Thông tin giấy tờ định danh, ngày cấp, nơi cấp hoặc hạn sử dụng không hợp lệ.',400,request);
     if(!str(b.registration_purpose)||str(b.registration_purpose).length<10||!str(b.research_or_project_interest))return fail('Bước 4: Cần mục đích đăng ký và lĩnh vực quan tâm.',400,request);
     if(!boolInt(b.privacy_policy_accepted)||!boolInt(b.terms_accepted)||!boolInt(b.data_accuracy_confirmed))return fail('Bước 5: Cần xác nhận thông báo dữ liệu cá nhân, điều khoản và tính chính xác của dữ liệu.',400,request);
     const signature=str(b.signature_data);if(!signature||!/^data:image\/png;base64,[A-Za-z0-9+/=]{1,350000}$/.test(signature))return fail('Bước 5: Cần ký trực tiếp hoặc tải ảnh chữ ký PNG hợp lệ trước khi gửi hồ sơ.',400,request);
     if(!env.ID_ENCRYPTION_KEY||String(env.ID_ENCRYPTION_KEY).length<32)return fail('Hệ thống chưa cấu hình khóa mã hóa dữ liệu định danh. Hồ sơ chưa được lưu; vui lòng liên hệ hỗ trợ.',503,request);
-    const encNumber=await encryptSensitive(idNumber,env.ID_ENCRYPTION_KEY),idHash=await hashText(idNumber),requestCode=await uniqueRequestCode(env.DB),id=uuid();
+    const encNumber=await encryptSensitive(idNumber,env.ID_ENCRYPTION_KEY),requestCode=await uniqueRequestCode(env.DB),id=uuid();
+    // Do not persist an unsalted SHA-256 hash of a low-entropy government identifier.
+    // The field remains nullable for schema compatibility; encrypted ciphertext is the stored identifier.
     const requestedRole=ROLES.has(str(b.requested_role))&&!['super_admin','cms_editor','reviewer'].includes(str(b.requested_role))?str(b.requested_role):'member';
     const keyFields=['personal_photo_r2_key','supporting_doc_r2_key'];
     if(!str(b.personal_photo_r2_key))return fail('Bước 3: Cần tải lên ảnh chân dung cá nhân trước khi gửi hồ sơ.',400,request);
@@ -444,7 +537,7 @@ async function routeApi(request,env) {
     for(const field of keyFields){const key=str(b[field]);if(key){const f=await env.DB.prepare(`SELECT id,purpose,related_entity_type FROM r2_files WHERE r2_key=? AND related_entity_type='account_request_staging'`).bind(key).first();if(!f||f.purpose!==expectedPurpose[field]) return fail('Một tệp đính kèm không hợp lệ hoặc không đúng loại. Vui lòng tải lại tệp.',400,request);}}
     const encSignature=await encryptSensitive(signature,env.ID_ENCRYPTION_KEY);
     await env.DB.prepare(`INSERT INTO account_requests(id,request_code,full_name,email,phone,gender,date_of_birth,calculated_age,is_minor,guardian_full_name,guardian_relationship,guardian_phone,guardian_email,guardian_consent,personal_photo_r2_key,applicant_group,education_level,institution_name,major_or_field,current_occupation,work_unit,class_name,faculty_department,position_title,id_document_type,id_number_encrypted,id_number_hash,id_number_masked,id_issued_date,id_issued_place,id_expiry_date,id_front_r2_key,id_back_r2_key,requested_role,registration_purpose,research_or_project_interest,experience_summary,supporting_doc_r2_key,privacy_policy_accepted,terms_accepted,data_accuracy_confirmed,signature_data,status,submitted_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'Đã tiếp nhận',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`)
-      .bind(id,requestCode,full,email,phone,gender,dob,age,minor?1:0,minor?cleanText(b.guardian_full_name,160):null,minor?cleanText(b.guardian_relationship,100):null,minor?cleanText(b.guardian_phone,32):null,minor?str(b.guardian_email).toLowerCase()||null:null,minor?1:0,str(b.personal_photo_r2_key)||null,group,cleanText(b.education_level,120),cleanText(b.institution_name,220),cleanText(b.major_or_field,220),cleanText(b.current_occupation,160),cleanText(b.work_unit,220)||null,cleanText(b.class_name,120)||null,cleanText(b.faculty_department,160)||null,cleanText(b.position_title,160)||null,idType,encNumber,idHash,maskedId(idNumber,idType),str(b.id_issued_date),cleanText(b.id_issued_place,200),str(b.id_expiry_date)||null,str(b.id_front_r2_key)||null,str(b.id_back_r2_key)||null,requestedRole,cleanText(b.registration_purpose,4000),cleanText(b.research_or_project_interest,1500),cleanText(b.experience_summary,4000)||null,str(b.supporting_doc_r2_key)||null,1,1,1,encSignature).run();
+      .bind(id,requestCode,full,email,phone,gender,dob,age,minor?1:0,minor?cleanText(b.guardian_full_name,160):null,minor?cleanText(b.guardian_relationship,100):null,minor?cleanText(b.guardian_phone,32):null,minor?str(b.guardian_email).toLowerCase()||null:null,minor?1:0,str(b.personal_photo_r2_key)||null,group,cleanText(b.education_level,120),cleanText(b.institution_name,220),cleanText(b.major_or_field,220),cleanText(b.current_occupation,160),cleanText(b.work_unit,220)||null,cleanText(b.class_name,120)||null,cleanText(b.faculty_department,160)||null,cleanText(b.position_title,160)||null,idType,encNumber,null,maskedId(idNumber,idType),str(b.id_issued_date),cleanText(b.id_issued_place,200),str(b.id_expiry_date)||null,null,null,requestedRole,cleanText(b.registration_purpose,4000),cleanText(b.research_or_project_interest,1500),cleanText(b.experience_summary,4000)||null,str(b.supporting_doc_r2_key)||null,1,1,1,encSignature).run();
     for(const field of keyFields){const key=str(b[field]);if(key)await env.DB.prepare(`UPDATE r2_files SET related_entity_type='account_request',related_entity_id=?,purpose=?,access_scope='identity_private' WHERE r2_key=?`).bind(id,field,key).run();}
     await env.DB.prepare(`INSERT INTO account_request_history(id,request_id,actor_user_id,old_status,new_status,note_public,note_internal,created_at) VALUES(?,?,NULL,NULL,'Đã tiếp nhận','Hồ sơ đã được tiếp nhận.','',CURRENT_TIMESTAMP)`).bind(uuid(),id).run();
     const mail=await dispatchEmail(env,'account_request_received',email,`Xác nhận tiếp nhận hồ sơ ${requestCode}`,{full_name:full,request_code:requestCode,status:'Đã tiếp nhận'},requestCode);
@@ -457,7 +550,7 @@ async function routeApi(request,env) {
     if(!/^SCRD-SFN-\d{10}$/.test(code)||!validEmail(email))return fail('Vui lòng nhập đúng mã hồ sơ và email đăng ký.',400,request);
     const r=await env.DB.prepare(`SELECT request_code,status,review_notes_public,submitted_at,updated_at FROM account_requests WHERE request_code=? AND lower(email)=? LIMIT 1`).bind(code,email).first();
     if(!r)return fail('Không tìm thấy hồ sơ khớp với mã và email đã cung cấp.',404,request);
-    const guidance=({ 'Đã tiếp nhận':'Hồ sơ đã được tiếp nhận. Vui lòng theo dõi trạng thái tại đây.','Đang xem xét':'Hồ sơ đang được xem xét. Bạn chưa cần gửi lại hồ sơ.','Cần bổ sung thông tin':r.review_notes_public||'Vui lòng đọc thông báo từ bộ phận xét duyệt và bổ sung theo hướng dẫn.','Đã duyệt':'Hồ sơ đã được duyệt. Kiểm tra email đã đăng ký để nhận hướng dẫn kích hoạt tài khoản.','Từ chối':r.review_notes_public||'Hồ sơ chưa được chấp thuận. Liên hệ hỗ trợ nếu cần làm rõ.','Đã kích hoạt tài khoản':'Tài khoản đã được kích hoạt.'})[r.status]||'Vui lòng theo dõi cập nhật tiếp theo.';
+    const guidance=({ 'Đã tiếp nhận':'Hồ sơ đã được tiếp nhận. Vui lòng theo dõi trạng thái tại đây.','Đang xem xét':'Hồ sơ đang được xem xét. Bạn chưa cần gửi lại hồ sơ.','Cần bổ sung thông tin':r.review_notes_public||'Vui lòng đọc thông báo từ bộ phận xét duyệt và bổ sung theo hướng dẫn.','Đã duyệt':'Hồ sơ đã được duyệt. Vui lòng liên hệ quản trị viên hoặc hotline 0924 910 210 để xác minh danh tính và hoàn tất thiết lập tài khoản.','Từ chối':r.review_notes_public||'Hồ sơ chưa được chấp thuận. Liên hệ hỗ trợ nếu cần làm rõ.','Đã kích hoạt tài khoản':'Tài khoản đã được kích hoạt.'})[r.status]||'Vui lòng theo dõi cập nhật tiếp theo.';
     return ok({request:{request_code:r.request_code,status:r.status,public_review_message:r.review_notes_public||'',submitted_at:r.submitted_at,updated_at:r.updated_at,next_step_guidance:guidance}},200,request);
   }
   if(path==='/api/auth/login'&&method==='POST'){
@@ -478,6 +571,25 @@ async function routeApi(request,env) {
   if(path==='/api/auth/me'&&method==='GET'){
     const session=await currentSession(request,env);if(!session)return fail('Phiên đăng nhập đã hết hạn.',401,request);return ok({user:publicUser(session),csrf_token:session.csrf_token},200,request);
   }
+  if(path==='/api/auth/change-password'&&method==='POST'){
+    const session=await currentSession(request,env);
+    if(!session)return fail('Phiên đăng nhập đã hết hạn.',401,request);
+    if(!needsCsrf(request,session))return fail('Mã bảo vệ yêu cầu không hợp lệ.',403,request);
+    if(!await rateLimit(env.DB,`password-change:${session.user_id}`,8,900))return fail('Quá nhiều lần thử đổi mật khẩu. Vui lòng thử lại sau.',429,request);
+    const b=await safeBody(request),currentPassword=String(b.current_password||''),newPassword=String(b.new_password||''),confirmPassword=String(b.confirm_password||'');
+    const user=await env.DB.prepare('SELECT id,password_hash,must_change_password FROM users WHERE id=? LIMIT 1').bind(session.user_id).first();
+    if(!user||!await verifyPassword(currentPassword,user.password_hash))return fail('Mật khẩu hiện tại không chính xác.',401,request);
+    if(newPassword.length<12||newPassword.length>256)return fail('Mật khẩu mới phải có từ 12 đến 256 ký tự.',400,request);
+    if(newPassword!==confirmPassword)return fail('Mật khẩu mới và xác nhận không khớp.',400,request);
+    if(await verifyPassword(newPassword,user.password_hash))return fail('Mật khẩu mới phải khác mật khẩu hiện tại.',400,request);
+    const hashed=await hashPassword(newPassword);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE users SET password_hash=?,password_salt='',must_change_password=0,failed_login_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(hashed,session.user_id),
+      env.DB.prepare('UPDATE user_sessions SET revoked=1,revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND session_id<>? AND revoked=0').bind(session.user_id,session.session_id)
+    ]);
+    await writeAudit(env.DB,request,session.user_id,'AUTH_PASSWORD_CHANGED','users',session.user_id,{forced:Boolean(Number(user.must_change_password||0))});
+    return ok({changed:true,must_change_password:false,message:'Đổi mật khẩu thành công. Các phiên đăng nhập khác đã được thu hồi.'},200,request);
+  }
   // Password recovery is intentionally handled by the official administrator/hotline workflow.
   // Keep the legacy password_reset_tokens table for non-destructive compatibility, but never issue or accept reset tokens.
   if((path==='/api/auth/forgot-password'||path==='/api/auth/reset-password')&&['POST','GET'].includes(method)){
@@ -493,16 +605,16 @@ async function routeApi(request,env) {
     await env.DB.prepare('UPDATE users SET avatar_r2_key=?,avatar_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(r.r2_key,`/api/media/${encodeURIComponent(r.id)}`,s.user_id).run();await writeAudit(env.DB,request,s.user_id,'PROFILE_AVATAR_UPDATED','users',s.user_id,{});return ok({avatar_url:`/api/media/${encodeURIComponent(r.id)}`,r2_key:r.r2_key},201,request);
   }
   // The following routes require an authenticated session unless explicitly public above.
-  const protectedPrefixes=['/api/dashboard/','/api/cms/','/api/media/','/api/files/','/api/admin/','/api/research','/api/projects','/api/tasks','/api/chat/','/api/exams/','/api/my/'];
+  const protectedPrefixes=['/api/dashboard/','/api/cms/','/api/media/','/api/files/','/api/admin/','/api/research','/api/projects','/api/tasks','/api/chat/','/api/exams/','/api/my/','/api/profile'];
   const publicObjectRead=(method==='GET' && (/^\/api\/media\/[^/]+$/.test(path) || /^\/api\/files\/[^/]+\/download$/.test(path)));
   const isProtected=!publicObjectRead && protectedPrefixes.some(p=>path.startsWith(p));
   let session=null;
-  if(isProtected){try{session=await requireSession(request,env);}catch(e){return fail(e.message==='FORBIDDEN'?'Bạn không có quyền thực hiện thao tác này.':e.message==='CSRF_INVALID'?'Mã bảo vệ yêu cầu không hợp lệ.':'Bạn cần đăng nhập để thực hiện thao tác này.',e.httpStatus||401,request);}}
+  if(isProtected){try{session=await requireSession(request,env);}catch(e){return fail(e.message==='FORBIDDEN'?'Bạn không có quyền thực hiện thao tác này.':e.message==='CSRF_INVALID'?'Mã bảo vệ yêu cầu không hợp lệ.':e.message==='MUST_CHANGE_PASSWORD'?'Tài khoản đang dùng mật khẩu tạm thời. Vui lòng đổi mật khẩu trước khi tiếp tục.':'Bạn cần đăng nhập để thực hiện thao tác này.',e.httpStatus||401,request);}}
   if(path==='/api/dashboard/overview'&&method==='GET'){
     const s=session;
     const [research,projects,tasks,myAttempts,allPosts,allPages,menus,media,requests,rooms]=await Promise.all([
-      env.DB.prepare('SELECT id,code,title_vi,title_en,status,progress_percent,lead_user_id FROM research_studies ORDER BY updated_at DESC LIMIT 200').all(),
-      env.DB.prepare('SELECT id,code,title_vi,title_en,status,progress_percent,manager_user_id FROM community_projects ORDER BY updated_at DESC LIMIT 200').all(),
+      env.DB.prepare('SELECT id,code,title_vi,title_en,summary_vi,summary_en,status,is_public,progress_percent,lead_user_id FROM research_studies ORDER BY updated_at DESC LIMIT 200').all(),
+      env.DB.prepare('SELECT id,code,title_vi,title_en,objective_vi,objective_en,summary_vi,summary_en,status,is_public,progress_percent,manager_user_id FROM community_projects ORDER BY updated_at DESC LIMIT 200').all(),
       env.DB.prepare('SELECT id,parent_type,parent_id,title,description,assignee_user_id,due_date,status,weight,milestone_name,evidence_note,created_by,created_at,updated_at FROM work_tasks WHERE created_by=? OR assignee_user_id=? ORDER BY updated_at DESC LIMIT 300').bind(s.user_id,s.user_id).all(),
       env.DB.prepare(`SELECT a.id,a.exam_id,a.status,a.started_at,a.submitted_at,a.score,a.max_score,e.title exam_title,e.code exam_code,r.receipt_code FROM exam_attempts a JOIN exams e ON e.id=a.exam_id LEFT JOIN assessment_receipts r ON r.attempt_id=a.id WHERE a.user_id=? ORDER BY a.created_at DESC LIMIT 100`).bind(s.user_id).all(),
       CMS_ROLES.has(s.role)?env.DB.prepare('SELECT id,slug,title_vi,title_en,excerpt_vi,excerpt_en,content_vi,content_en,category,tags_json,featured_image_url,featured_media_id,display_author,is_ai_generated,status,seo_title,seo_description,published_at,updated_at FROM cms_posts ORDER BY updated_at DESC LIMIT 300').all():Promise.resolve({results:[]}),
@@ -560,8 +672,15 @@ async function routeApi(request,env) {
   }
   if(path==='/api/cms/settings'&&method==='POST'){
     if(!CMS_ROLES.has(session.role))return fail('Bạn không có quyền chỉnh sửa cài đặt.',403,request);const b=await safeBody(request),settings=b.settings;if(!settings||typeof settings!=='object'||Array.isArray(settings))return fail('Dữ liệu cấu hình không hợp lệ.',400,request);
-    const allowed=new Set(Object.keys(DEFAULT_SETTINGS));for(const [key,val] of Object.entries(settings)){if(!allowed.has(key))continue;const value=typeof val==='string'?cleanText(val,5000):val;await env.DB.prepare(`INSERT INTO system_config(config_key,config_value,is_public,updated_at,updated_by) VALUES(?,?,1,CURRENT_TIMESTAMP,?) ON CONFLICT(config_key) DO UPDATE SET config_value=excluded.config_value,updated_at=CURRENT_TIMESTAMP,updated_by=excluded.updated_by`).bind(key,JSON.stringify(value),session.user_id).run();}
-    await writeAudit(env.DB,request,session.user_id,'CMS_SETTINGS_UPDATED','system_config','public', {keys:Object.keys(settings).filter(k=>allowed.has(k))});return ok({saved:Object.keys(settings).filter(k=>allowed.has(k))},200,request);
+    const allowed=new Set(Object.keys(DEFAULT_SETTINGS));const normalizedSettings={};
+    for(const [key,val] of Object.entries(settings)){
+      if(!allowed.has(key))continue;
+      let value=typeof val==='string'?cleanText(val,5000):val;
+      if(key==='homepage_layout')value=normalizeHomeLayout(val);
+      normalizedSettings[key]=value;
+    }
+    for(const [key,value] of Object.entries(normalizedSettings))await env.DB.prepare(`INSERT INTO system_config(config_key,config_value,is_public,updated_at,updated_by) VALUES(?,?,1,CURRENT_TIMESTAMP,?) ON CONFLICT(config_key) DO UPDATE SET config_value=excluded.config_value,updated_at=CURRENT_TIMESTAMP,updated_by=excluded.updated_by`).bind(key,JSON.stringify(value),session.user_id).run();
+    await writeAudit(env.DB,request,session.user_id,'CMS_SETTINGS_UPDATED','system_config','public', {keys:Object.keys(normalizedSettings)});return ok({saved:Object.keys(normalizedSettings)},200,request);
   }
   if(path==='/api/cms/redirects'&&method==='POST'){
     if(!CMS_ROLES.has(session.role))return fail('Bạn không có quyền quản lý chuyển hướng.',403,request);const b=await safeBody(request),oldPath=str(b.old_path),newPath=str(b.new_path),code=Number(b.status_code||301);
@@ -626,13 +745,18 @@ async function routeApi(request,env) {
   const adminTempPasswordMatch=path.match(/^\/api\/admin\/users\/([^/]+)\/temporary-password$/);
   if(adminTempPasswordMatch&&method==='POST'){
     if(session.role!=='super_admin')return fail('Chỉ super admin được khởi tạo mật khẩu tạm thời.',403,request);
-    const userId=decodeURIComponent(adminTempPasswordMatch[1]),target=await env.DB.prepare(`SELECT id,full_name,email,status FROM users WHERE id=? LIMIT 1`).bind(userId).first();
+    const userId=decodeURIComponent(adminTempPasswordMatch[1]);
+    if(userId===session.user_id)return fail('Không thể tự cấp mật khẩu tạm cho tài khoản đang dùng. Hãy nhờ một super admin khác thực hiện.',409,request);
+    const target=await env.DB.prepare(`SELECT id,full_name,email,status FROM users WHERE id=? LIMIT 1`).bind(userId).first();
     if(!target)return fail('Không tìm thấy tài khoản người dùng.',404,request);
+    if(target.status!=='active')return fail('Chỉ cấp mật khẩu tạm thời cho tài khoản đang hoạt động. Hãy xử lý trạng thái tài khoản theo quy trình duyệt trước.',409,request);
     const temporaryPassword=randomToken(12),passwordHash=await hashPassword(temporaryPassword);
-    await env.DB.prepare(`UPDATE users SET password_hash=?,password_salt='',status='active',failed_login_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(passwordHash,userId).run();
+    // Do not reactivate pending, suspended, or locked accounts as a side effect of password support.
+    const updated=await env.DB.prepare(`UPDATE users SET password_hash=?,password_salt='',must_change_password=1,failed_login_attempts=0,locked_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='active'`).bind(passwordHash,userId).run();
+    if(!Number(updated?.meta?.changes||0))return fail('Trạng thái tài khoản đã thay đổi. Vui lòng tải lại danh sách và kiểm tra trước khi cấp mật khẩu tạm.',409,request);
     await env.DB.prepare(`UPDATE user_sessions SET revoked=1,revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked=0`).bind(userId).run();
     await writeAudit(env.DB,request,session.user_id,'ADMIN_TEMP_PASSWORD_ISSUED','users',userId,{target_email:target.email});
-    return ok({id:userId,full_name:target.full_name,email:target.email,status:'active',temporary_password:temporaryPassword,message:'Mật khẩu tạm thời chỉ hiển thị một lần. Xác minh danh tính người nhận qua kênh chính thức trước khi bàn giao.'},200,request);
+    return ok({id:userId,full_name:target.full_name,email:target.email,status:'active',must_change_password:true,temporary_password:temporaryPassword,message:'Mật khẩu tạm thời chỉ hiển thị một lần; người dùng phải đổi mật khẩu ngay lần đăng nhập đầu tiên. Xác minh danh tính người nhận qua kênh chính thức trước khi bàn giao.'},200,request);
   }
   if(path==='/api/admin/account-requests/review'&&method==='POST'){
     if(!REVIEW_ROLES.has(session.role))return fail('Bạn không có quyền xét duyệt hồ sơ.',403,request);const b=await safeBody(request);const result=await reviewRequest(env,request,session,b);return ok(result,200,request);
@@ -644,6 +768,17 @@ async function routeApi(request,env) {
       .bind(id,code,slug,cleanText(b.title_vi,250),cleanText(b.title_en||b.title_vi,250),cleanText(b.field_vi||b.field||'Chưa phân loại',180),cleanText(b.field_en||b.field||'Unclassified',180),cleanText(b.summary_vi||b.objective_vi,5000),cleanText(b.summary_en||b.objective_en||b.summary_vi,5000),sanitizeHtml(b.methodology_vi),sanitizeHtml(b.methodology_en),cleanText(b.findings_summary_vi,5000),cleanText(b.findings_summary_en,5000),cleanText(b.status||'Đề xuất',80),boolInt(b.is_public===undefined?true:b.is_public),session.user_id,Math.min(100,Math.max(0,Number(b.progress_percent||0))),b.start_date||null,b.end_date||null).run();
     await writeAudit(env.DB,request,session.user_id,'RESEARCH_UPSERT','research_studies',id,{code,slug});return ok({id,code,slug},200,request);
   }
+  const researchDelete=path.match(/^\/api\/research\/([^/]+)$/);
+  if(researchDelete&&method==='DELETE'){
+    if(!RESEARCH_ROLES.has(session.role))return fail('Bạn không có quyền xóa đề tài nghiên cứu.',403,request);
+    const id=decodeURIComponent(researchDelete[1]),row=await env.DB.prepare('SELECT id,code,title_vi FROM research_studies WHERE id=?').bind(id).first();
+    if(!row)return fail('Không tìm thấy đề tài nghiên cứu.',404,request);
+    const linked=await env.DB.prepare("SELECT COUNT(*) n FROM work_tasks WHERE parent_type='research' AND parent_id IN (?,?)").bind(row.id,row.code).first();
+    if(Number(linked?.n||0)>0)return fail('Không thể xóa đề tài khi còn nhiệm vụ liên kết. Hãy xử lý các nhiệm vụ trước.',409,request);
+    await env.DB.prepare('DELETE FROM research_studies WHERE id=?').bind(id).run();
+    await writeAudit(env.DB,request,session.user_id,'RESEARCH_DELETED','research_studies',id,{code:row.code});
+    return ok({deleted:true,id},200,request);
+  }
   if(path==='/api/projects'&&method==='POST'){
     if(!RESEARCH_ROLES.has(session.role)&&!ADMIN_ROLES.has(session.role))return fail('Bạn không có quyền quản lý dự án.',403,request);const b=await safeBody(request),id=str(b.id)||uuid(),code=cleanText(b.code||id,80),slug=cleanText(b.slug||code.toLowerCase(),180).toLowerCase().replace(/[^a-z0-9-]/g,'-');
     if(!cleanText(b.title_vi,250))return fail('Cần tên dự án.',400,request);
@@ -651,11 +786,45 @@ async function routeApi(request,env) {
       .bind(id,code,slug,cleanText(b.title_vi,250),cleanText(b.title_en||b.title_vi,250),cleanText(b.objective_vi||b.summary_vi,3000),cleanText(b.objective_en||b.summary_en||b.summary_vi,3000),cleanText(b.summary_vi,5000),cleanText(b.summary_en||b.summary_vi,5000),sanitizeHtml(b.activities_vi),sanitizeHtml(b.activities_en),cleanText(b.public_evidence_summary,3000),cleanText(b.location,240),(['Chuẩn bị','Đang thực hiện','Hoàn thành','Tạm hoãn'].includes(str(b.status))?str(b.status):'Chuẩn bị'),boolInt(b.is_public===undefined?true:b.is_public),session.user_id,Math.min(100,Math.max(0,Number(b.progress_percent||0))),b.start_date||null,b.end_date||null).run();
     await writeAudit(env.DB,request,session.user_id,'PROJECT_UPSERT','community_projects',id,{code,slug});return ok({id,code,slug},200,request);
   }
+  const projectDelete=path.match(/^\/api\/projects\/([^/]+)$/);
+  if(projectDelete&&method==='DELETE'){
+    if(!RESEARCH_ROLES.has(session.role))return fail('Bạn không có quyền xóa dự án.',403,request);
+    const id=decodeURIComponent(projectDelete[1]),row=await env.DB.prepare('SELECT id,code,title_vi FROM community_projects WHERE id=?').bind(id).first();
+    if(!row)return fail('Không tìm thấy dự án.',404,request);
+    const linked=await env.DB.prepare("SELECT COUNT(*) n FROM work_tasks WHERE parent_type='project' AND parent_id IN (?,?)").bind(row.id,row.code).first();
+    if(Number(linked?.n||0)>0)return fail('Không thể xóa dự án khi còn nhiệm vụ liên kết. Hãy xử lý các nhiệm vụ trước.',409,request);
+    await env.DB.prepare('DELETE FROM community_projects WHERE id=?').bind(id).run();
+    await writeAudit(env.DB,request,session.user_id,'PROJECT_DELETED','community_projects',id,{code:row.code});
+    return ok({deleted:true,id},200,request);
+  }
   if(path==='/api/tasks'&&method==='POST'){
-    if(!RESEARCH_ROLES.has(session.role)&&!ADMIN_ROLES.has(session.role))return fail('Bạn không có quyền quản lý nhiệm vụ.',403,request);const b=await safeBody(request),id=str(b.id)||uuid(),type=str(b.parent_type),parent=str(b.parent_id),title=cleanText(b.title,250),status=['todo','in_progress','review','completed'].includes(b.status)?b.status:'todo';if(!['research','project'].includes(type)||!parent||!title)return fail('Loại chương trình, mã chương trình và tên nhiệm vụ là bắt buộc.',400,request);
-    await env.DB.prepare(`INSERT INTO work_tasks(id,parent_type,parent_id,title,description,assignee_user_id,due_date,status,weight,milestone_name,evidence_note,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,assignee_user_id=excluded.assignee_user_id,due_date=excluded.due_date,status=excluded.status,weight=excluded.weight,milestone_name=excluded.milestone_name,evidence_note=excluded.evidence_note,updated_at=CURRENT_TIMESTAMP`).bind(id,type,parent,title,cleanText(b.description,3000),b.assignee_user_id||null,b.due_date||null,status,Math.max(1,Number(b.weight||1)),cleanText(b.milestone_name,200),cleanText(b.evidence_note,2000),session.user_id).run();
-    const table=type==='research'?'research_studies':'community_projects',total=await env.DB.prepare('SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=?').bind(type,parent).first(),done=await env.DB.prepare("SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=? AND status='completed'").bind(type,parent).first();const progress=Number(total?.total)>0?Math.round(Number(done?.total||0)/Number(total.total)*100):0;await env.DB.prepare(`UPDATE ${table} SET progress_percent=?,updated_at=CURRENT_TIMESTAMP WHERE id=? OR code=?`).bind(progress,parent,parent).run();
-    await env.DB.prepare(`INSERT INTO task_comments_history(id,task_id,user_id,action_type,content,created_at) VALUES(?,?,?,'status_change',?,CURRENT_TIMESTAMP)`).bind(uuid(),id,session.user_id,JSON.stringify({status,weight:b.weight})).run();await writeAudit(env.DB,request,session.user_id,'TASK_UPSERT','work_tasks',id,{parent_type:type,parent_id:parent,status});return ok({id,parent_progress_percent:progress},200,request);
+    if(!RESEARCH_ROLES.has(session.role))return fail('Bạn không có quyền quản lý nhiệm vụ.',403,request);
+    const b=await safeBody(request),id=str(b.id)||uuid(),type=str(b.parent_type),parent=str(b.parent_id),title=cleanText(b.title,250),status=['todo','in_progress','review','completed'].includes(b.status)?b.status:'todo';
+    if(!['research','project'].includes(type)||!parent||!title)return fail('Loại chương trình, mã chương trình và tên nhiệm vụ là bắt buộc.',400,request);
+    const table=type==='research'?'research_studies':'community_projects';
+    const parentRow=await env.DB.prepare(`SELECT id,code FROM ${table} WHERE id=? OR code=? LIMIT 1`).bind(parent,parent).first();
+    if(!parentRow)return fail('Không tìm thấy đề tài/dự án liên kết. Hãy chọn chương trình đã tồn tại.',404,request);
+    const weight=Number(b.weight??1);if(!Number.isFinite(weight)||weight<1||weight>1000)return fail('Trọng số nhiệm vụ phải nằm trong khoảng 1–1000.',400,request);
+    await env.DB.prepare(`INSERT INTO work_tasks(id,parent_type,parent_id,title,description,assignee_user_id,due_date,status,weight,milestone_name,evidence_note,created_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET parent_type=excluded.parent_type,parent_id=excluded.parent_id,title=excluded.title,description=excluded.description,assignee_user_id=excluded.assignee_user_id,due_date=excluded.due_date,status=excluded.status,weight=excluded.weight,milestone_name=excluded.milestone_name,evidence_note=excluded.evidence_note,updated_at=CURRENT_TIMESTAMP`).bind(id,type,parent,title,cleanText(b.description,3000),b.assignee_user_id||null,b.due_date||null,status,weight,cleanText(b.milestone_name,200),cleanText(b.evidence_note,2000),session.user_id).run();
+    const total=await env.DB.prepare('SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=?').bind(type,parent).first(),done=await env.DB.prepare("SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=? AND status='completed'").bind(type,parent).first();
+    const progress=Number(total?.total)>0?Math.round(Number(done?.total||0)/Number(total.total)*100):0;
+    await env.DB.prepare(`UPDATE ${table} SET progress_percent=?,updated_at=CURRENT_TIMESTAMP WHERE id=? OR code=?`).bind(progress,parent,parent).run();
+    await env.DB.prepare(`INSERT INTO task_comments_history(id,task_id,user_id,action_type,content,created_at) VALUES(?,?,?,'status_change',?,CURRENT_TIMESTAMP)`).bind(uuid(),id,session.user_id,JSON.stringify({status,weight})).run();
+    await writeAudit(env.DB,request,session.user_id,'TASK_UPSERT','work_tasks',id,{parent_type:type,parent_id:parent,status});return ok({id,parent_progress_percent:progress},200,request);
+  }
+  const taskDelete=path.match(/^\/api\/tasks\/([^/]+)$/);
+  if(taskDelete&&method==='DELETE'){
+    if(!RESEARCH_ROLES.has(session.role))return fail('Bạn không có quyền xóa nhiệm vụ.',403,request);
+    const id=decodeURIComponent(taskDelete[1]),row=await env.DB.prepare('SELECT id,parent_type,parent_id,weight FROM work_tasks WHERE id=?').bind(id).first();
+    if(!row)return fail('Không tìm thấy nhiệm vụ.',404,request);
+    await env.DB.prepare('DELETE FROM work_tasks WHERE id=?').bind(id).run();
+    const table=row.parent_type==='research'?'research_studies':'community_projects';
+    const total=await env.DB.prepare('SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=?').bind(row.parent_type,row.parent_id).first();
+    const done=await env.DB.prepare("SELECT SUM(weight) total FROM work_tasks WHERE parent_type=? AND parent_id=? AND status='completed'").bind(row.parent_type,row.parent_id).first();
+    const progress=Number(total?.total)>0?Math.round(Number(done?.total||0)/Number(total.total)*100):0;
+    await env.DB.prepare(`UPDATE ${table} SET progress_percent=?,updated_at=CURRENT_TIMESTAMP WHERE id=? OR code=?`).bind(progress,row.parent_id,row.parent_id).run();
+    await writeAudit(env.DB,request,session.user_id,'TASK_DELETED','work_tasks',id,{parent_type:row.parent_type,parent_id:row.parent_id});
+    return ok({deleted:true,id,parent_progress_percent:progress},200,request);
   }
   // Private chat: every listing/read/write is scoped to current membership. Room IDs alone grant no access.
   if(path==='/api/chat/contacts'&&method==='GET'){
@@ -666,7 +835,7 @@ async function routeApi(request,env) {
     return ok({contacts:(rows.results||[]).map(u=>({id:u.id,full_name:u.full_name,sfn_id:u.sfn_id,role:u.role,department:u.department}))},200,request);
   }
   if(path==='/api/chat/rooms'&&method==='GET'){
-    const rooms=await env.DB.prepare(`SELECT r.id,r.room_type,CASE WHEN r.room_type='direct' THEN COALESCE((SELECT u.full_name FROM chat_room_members other JOIN users u ON u.id=other.user_id WHERE other.room_id=r.id AND other.user_id<>? LIMIT 1),r.name) ELSE r.name END AS name,r.created_by,r.is_private,r.created_at,(SELECT COUNT(*) FROM chat_room_members cm WHERE cm.room_id=r.id) member_count,(SELECT COUNT(*) FROM chat_messages msg WHERE msg.room_id=r.id) message_count FROM chat_rooms r JOIN chat_room_members m ON m.room_id=r.id WHERE m.user_id=? ORDER BY COALESCE((SELECT MAX(created_at) FROM chat_messages WHERE room_id=r.id),r.created_at) DESC LIMIT 200`).bind(session.user_id,session.user_id).all();
+    const rooms=await env.DB.prepare(`SELECT r.id,r.room_type,CASE WHEN r.room_type='direct' THEN COALESCE((SELECT u.full_name FROM chat_room_members other JOIN users u ON u.id=other.user_id WHERE other.room_id=r.id AND other.user_id<>? LIMIT 1),r.name) ELSE r.name END AS name,r.created_by,r.is_private,r.created_at,(SELECT COUNT(*) FROM chat_room_members cm WHERE cm.room_id=r.id) member_count,(SELECT COUNT(*) FROM chat_messages msg WHERE msg.room_id=r.id) message_count,(SELECT COUNT(*) FROM chat_messages unread WHERE unread.room_id=r.id AND unread.sender_user_id<>? AND unread.is_deleted=0 AND unread.rowid>COALESCE((SELECT read_msg.rowid FROM chat_messages read_msg WHERE read_msg.id=m.last_read_message_id),0)) unread_count FROM chat_rooms r JOIN chat_room_members m ON m.room_id=r.id WHERE m.user_id=? ORDER BY COALESCE((SELECT MAX(created_at) FROM chat_messages WHERE room_id=r.id),r.created_at) DESC LIMIT 200`).bind(session.user_id,session.user_id,session.user_id).all();
     return ok({rooms:rooms.results||[]},200,request);
   }
   if(path==='/api/chat/rooms'&&method==='POST'){
@@ -743,10 +912,52 @@ async function routeApi(request,env) {
   }
   const chatMessages=path.match(/^\/api\/chat\/rooms\/([^/]+)\/messages$/);
   if(chatMessages&&(method==='GET'||method==='POST')){
-    const roomId=decodeURIComponent(chatMessages[1]);const member=await env.DB.prepare('SELECT room_id FROM chat_room_members WHERE room_id=? AND user_id=?').bind(roomId,session.user_id).first();if(!member)return fail('Bạn không phải thành viên của phòng này.',403,request);
-    if(method==='GET'){const rows=await env.DB.prepare(`SELECT m.id,m.room_id,m.message_text,m.attachment_r2_file_id,m.is_deleted,m.created_at,u.full_name sender_name FROM chat_messages m JOIN users u ON u.id=m.sender_user_id WHERE m.room_id=? ORDER BY m.created_at DESC LIMIT 200`).bind(roomId).all();return ok({messages:(rows.results||[]).reverse().map(m=>({...m,message_text:m.is_deleted?'Tin nhắn đã được thu hồi.':m.message_text}))},200,request);}
+    const roomId=decodeURIComponent(chatMessages[1]);
+    const member=await env.DB.prepare('SELECT room_id FROM chat_room_members WHERE room_id=? AND user_id=?').bind(roomId,session.user_id).first();
+    if(!member)return fail('Bạn không phải thành viên của phòng này.',403,request);
+    if(method==='GET'){
+      const rows=await env.DB.prepare(`SELECT m.id,m.room_id,m.message_text,m.attachment_r2_file_id,m.is_deleted,m.created_at,u.full_name sender_name,f.original_filename attachment_filename,f.mime_type attachment_mime_type,f.size_bytes attachment_size_bytes FROM chat_messages m JOIN users u ON u.id=m.sender_user_id LEFT JOIN r2_files f ON f.id=m.attachment_r2_file_id WHERE m.room_id=? ORDER BY m.created_at DESC,m.rowid DESC LIMIT 200`).bind(roomId).all();
+      const messages=(rows.results||[]).reverse().map(m=>({...m,message_text:m.is_deleted?'Tin nhắn đã được thu hồi.':m.message_text,attachment:(!m.is_deleted&&m.attachment_r2_file_id)?{id:m.attachment_r2_file_id,filename:m.attachment_filename||'Tệp đính kèm',mime_type:m.attachment_mime_type||'application/octet-stream',size_bytes:Number(m.attachment_size_bytes||0)}:null}));
+      const latestVisible=[...messages].reverse().find(m=>!m.is_deleted);
+      if(latestVisible)await env.DB.prepare('UPDATE chat_room_members SET last_read_message_id=? WHERE room_id=? AND user_id=?').bind(latestVisible.id,roomId,session.user_id).run();
+      return ok({messages},200,request);
+    }
     if(!await rateLimit(env.DB,`chat:${session.user_id}:${roomId}`,60,60))return fail('Bạn đang gửi tin nhắn quá nhanh. Vui lòng chờ một chút.',429,request);
-    const b=await safeBody(request),message=cleanText(b.message_text,5000);if(!message)return fail('Tin nhắn không được để trống.',400,request);const id=uuid();await env.DB.prepare(`INSERT INTO chat_messages(id,room_id,sender_user_id,message_text,is_deleted,created_at) VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)`).bind(id,roomId,session.user_id,message).run();return ok({id},201,request);
+    let message='',attachmentId='',uploadedFile=null;
+    const contentType=str(request.headers.get('Content-Type')).toLowerCase();
+    if(contentType.includes('multipart/form-data')){
+      const fd=await request.formData();
+      message=cleanText(fd.get('message_text'),5000);
+      const file=fd.get('file');
+      if(file&&typeof file.arrayBuffer==='function'&&file.size){
+        if(file.size>10*1024*1024)return fail('Tệp đính kèm chat không được vượt quá 10 MB.',413,request);
+        const allowedTypes=new Set(['image/jpeg','image/png','image/webp','application/pdf','text/plain']);
+        if(!allowedTypes.has(str(file.type).toLowerCase()))return fail('Chat chỉ nhận ảnh JPEG/PNG/WebP, PDF hoặc tệp văn bản thuần.',415,request);
+        if(!env.FILES)return fail('Kho tệp R2 chưa được cấu hình.',503,request);
+        const fileData=await validateUploadFile(file);
+        if(!await rateLimit(env.DB,`chat_upload:${session.user_id}:${roomId}`,10,600))return fail('Bạn tải tệp quá thường xuyên. Vui lòng thử lại sau.',429,request);
+        uploadedFile=await uploadToR2(env,request,{purpose:'chat_attachment',scope:'chat_attachment',owner:session.user_id,relatedType:'chat_room',relatedId:roomId,anonymous:false,fileData});
+        attachmentId=uploadedFile.id;
+      }
+    }else{
+      const b=await safeBody(request);message=cleanText(b.message_text,5000);attachmentId=str(b.attachment_id);
+    }
+    if(!message&&!attachmentId)return fail('Nhập nội dung tin nhắn hoặc chọn một tệp đính kèm.',400,request);
+    if(attachmentId&&!uploadedFile){
+      const attachment=await env.DB.prepare(`SELECT id,owner_user_id,related_entity_type,related_entity_id,purpose,access_scope FROM r2_files WHERE id=? LIMIT 1`).bind(attachmentId).first();
+      if(!attachment||attachment.purpose!=='chat_attachment'||attachment.access_scope!=='chat_attachment'||attachment.owner_user_id!==session.user_id||attachment.related_entity_type!=='chat_room'||attachment.related_entity_id!==roomId)return fail('Tệp đính kèm không hợp lệ hoặc không thuộc phòng chat này.',403,request);
+      const used=await env.DB.prepare('SELECT 1 AS used FROM chat_messages WHERE attachment_r2_file_id=? LIMIT 1').bind(attachmentId).first();
+      if(used)return fail('Tệp đính kèm này đã được gửi trong một tin nhắn khác.',409,request);
+    }
+    const id=uuid();
+    try {
+      await env.DB.prepare(`INSERT INTO chat_messages(id,room_id,sender_user_id,message_text,attachment_r2_file_id,is_deleted,created_at) VALUES(?,?,?,?,?,0,CURRENT_TIMESTAMP)`).bind(id,roomId,session.user_id,message,attachmentId||null).run();
+    } catch(error) {
+      if(uploadedFile){await env.FILES.delete(uploadedFile.r2_key).catch(()=>{});await env.DB.prepare('DELETE FROM r2_files WHERE id=? AND owner_user_id=?').bind(uploadedFile.id,session.user_id).run().catch(()=>{});}
+      throw error;
+    }
+    await writeAudit(env.DB,request,session.user_id,'CHAT_MESSAGE_SENT','chat_rooms',roomId,{message_id:id,has_attachment:Boolean(attachmentId)});
+    return ok({id,attachment_id:attachmentId||null},201,request);
   }
   // Exam control endpoints. Exam delivery/save/submit is performed by the dedicated Exam Worker.
   const startMatch=path.match(/^\/api\/exams\/([^/]+)\/start$/);if(startMatch&&method==='POST'){

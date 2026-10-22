@@ -23,8 +23,13 @@ try {
       assert.ok(words.length >= 4000, `${slug}.${field} has only ${words.length} tokens`);
       console.log(`PASS content ${slug}.${field}: ${words.length} words/tokens`);
     }
+    const paragraphs = [String(row.content_vi), String(row.content_en)].flatMap(content => content.match(/<p>[\s\S]*?<\/p>/g) || []);
+    const uniqueParagraphs = new Set(paragraphs);
+    assert.ok(paragraphs.length >= 180, `${slug} long-form content has too few paragraphs: ${paragraphs.length}`);
+    assert.equal(uniqueParagraphs.size, paragraphs.length, `${slug} contains repeated long-form paragraphs; review editorial quality`);
+    console.log(`PASS content ${slug}: ${paragraphs.length} unique paragraphs`);
   }
-  console.log('CONTENT VALIDATION: 4/4 minimum-length checks PASS');
+  console.log('CONTENT VALIDATION: 6/6 length/structure/uniqueness checks PASS');
 } finally {
   db.close();
 }

@@ -111,11 +111,93 @@ const tests = [
     const examHtml = read('EXAM/public/index.html');
     const examHeaders = read('EXAM/public/_headers');
     const health = read('EXAM/functions/health.js');
-    assert.match(examHtml, /20261022-full-repair-r1/);
+    assert.match(examHtml, /20261022-ultra-repair-r2/);
     assert.match(examHeaders, /https:\/\/scrd\.skyfirst\.io\.vn/);
     assert.doesNotMatch(examHeaders, /slc\.skyfirst\.io\.vn/);
     assert.match(health, /https:\/\/scrd\.skyfirst\.io\.vn\/api\/health/);
     assert.doesNotMatch(health, /slc\.skyfirst\.io\.vn/);
+  }],
+  ['temporary-password flow has forced-change screen, endpoint and schema migration', () => {
+    assert.match(app, /renderForcePasswordChangeView/);
+    assert.match(app, /path === '\/doi-mat-khau'/);
+    assert.match(app, /api\/auth\/change-password/);
+    assert.match(read('backend_worker.js'), /must_change_password=1/);
+    assert.match(read('migrations/0005_temporary_password_guard.sql'), /ALTER TABLE users ADD COLUMN must_change_password/);
+  }],
+  ['chat file sharing is submitted with the message and server checks member-scoped media access', () => {
+    assert.match(app, /id=\"inpChatAttachment\"/);
+    assert.match(app, /form.set\('file',selectedFile\)/);
+    assert.match(app, /data-download-chat-file/);
+    assert.match(read('backend_worker.js'), /scope==='chat_attachment'&&session/);
+    assert.match(read('backend_worker.js'), /chat_messages cm JOIN chat_room_members rm/);
+    assert.match(read('backend_worker.js'), /related_entity_id!==roomId/);
+  }],
+  ['hero supporting descriptions render independently and are editable through CMS settings', () => {
+    assert.match(app, /class=\"hero-description\"/);
+    assert.match(app, /hero_description_vi/);
+    assert.match(app, /hero_description_en/);
+    assert.match(app, /id=\"setHeroDescVi\"/);
+    assert.match(app, /id=\"setHeroDescEn\"/);
+    assert.match(read('migrations/0006_hero_description_split.sql'), /hero_description_vi/);
+    assert.match(read('migrations/0006_hero_description_split.sql'), /hero_description_en/);
+  }],
+  ['admin settings deep link routes to CMS settings and keeps authentication/role checks', () => {
+    assert.match(app, /path === '\/admin\/settings'/);
+    assert.match(app, /You do not have permission to access CMS settings/);
+    assert.match(app, /activeDashboardTab = 'cms_menus'/);
+    assert.match(app, /401 — Yêu cầu xác thực/);
+  }],
+  ['temporary password UI does not claim to activate an account', () => {
+    assert.doesNotMatch(app, /Tạo mật khẩu tạm mới, kích hoạt tài khoản/);
+    assert.match(app, /Chỉ áp dụng cho tài khoản đang hoạt động/);
+    assert.match(read('backend_worker.js'), /Chỉ cấp mật khẩu tạm thời cho tài khoản đang hoạt động/);
+  }],
+  ['registration preview includes the portrait in Step 3 and the full review in Step 5', () => {
+    assert.match(app, /personalPhotoPreviewWrap/);
+    assert.match(app, /personal_photo_preview_data_url/);
+    assert.match(app, /registration-review-photo/);
+    for (const label of ['Ngày \/ nơi cấp:', 'Hạn sử dụng:', 'Lĩnh vực quan tâm:', 'Mục đích xin cấp tài khoản:']) assert.ok(app.includes(label), `Step 5 review misses ${label}`);
+  }],
+  ['registration submits an explicit allowlist and does not transmit local preview/legacy ID photo keys', () => {
+    assert.match(app, /const payloadKeys = \[/);
+    assert.match(app, /JSON\.stringify\(submission\)/);
+    assert.doesNotMatch(app, /JSON\.stringify\(d\)/);
+    assert.doesNotMatch(app, /id_front_r2_key|id_back_r2_key/);
+  }],
+  ['starting a second account application resets the previous applicant data and signature', () => {
+    assert.match(app, /AppState\.regDraft = createEmptyRegDraft\(\)/);
+    assert.match(app, /function createEmptyRegDraft\(\)/);
+  }],
+  ['applicant-facing terms do not contain internal implementation notes', () => {
+    assert.match(app, /Điều khoản đăng ký và sử dụng tài khoản Sky First/);
+    const termsNote = app.match(/<p class="registration-terms-note">([\s\S]*?)<\/p>/)?.[1] || '';
+    assert.ok(termsNote, 'applicant should have a visible link to full terms and privacy notice');
+    assert.doesNotMatch(termsNote, /Nội dung điều khoản chính thức cần được Trung tâm phê duyệt/);
+  }],
+  ['homepage includes data-driven assessment, verified publication and verified partner blocks', () => {
+    assert.match(app, /data-home-block="assessments"/);
+    assert.match(app, /data-home-block="publications"/);
+    assert.match(app, /data-home-block="partners"/);
+    assert.match(app, /No verified publications are available for public display yet/);
+    assert.match(app, /Unverified logos or partnerships are not displayed/);
+  }],
+  ['CMS includes a persisted homepage layout manager with ordering and visibility controls', () => {
+    assert.match(app, /data-dash-tab="cms_home_layout"/);
+    assert.match(app, /data-layout-move="up"/);
+    assert.match(app, /data-layout-enabled/);
+    assert.match(app, /btnSaveHomeLayout/);
+    assert.match(app, /settings:\{homepage_layout:normalized\}/);
+    assert.match(css, /\.home-layout-row/);
+    assert.match(read('backend_worker.js'), /function normalizeHomeLayout/);
+  }],
+  ['research, project and task admin UI provides edit/delete actions and safe task fields', () => {
+    assert.match(app, /data-edit-program=/);
+    assert.match(app, /data-delete-program=/);
+    assert.match(app, /data-edit-task=/);
+    assert.match(app, /data-delete-task=/);
+    assert.match(app, /id="tkDueDate"/);
+    assert.match(read('backend_worker.js'), /const taskDelete=path\.match/);
+    assert.match(read('backend_worker.js'), /Không thể xóa đề tài khi còn nhiệm vụ liên kết/);
   }]
 ];
 
